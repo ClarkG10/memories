@@ -6,7 +6,6 @@
 
   "rewrites": [
     {
-      "comment": "A memory opens at its own address (/m/<id>). Without this, reloading or sharing that link asks Vercel for a file that does not exist.",
       "source": "/((?!assets/).*)",
       "destination": "/index.html"
     }

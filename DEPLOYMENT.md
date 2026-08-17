@@ -239,8 +239,16 @@ Anything prefixed `VITE_` is compiled into the JavaScript bundle and is public.
 No Google credential, database password or Laravel secret belongs there — those
 live only in the Forge environment.
 
-`frontend/vercel.json` already handles the SPA rewrite (so `/m/<id>` survives a
-reload), long-lived asset caching, and the security headers.
+`frontend/vercel.json` already handles the rest. Since JSON cannot carry
+comments — and Vercel rejects any unrecognised key outright — what each part is
+for is recorded here instead:
+
+- **`rewrites`** sends everything except `/assets/*` to `index.html`. A memory
+  opens at its own address (`/m/<id>`); without this, reloading or sharing that
+  link asks Vercel for a file that does not exist and gets a 404.
+- **`headers`** caches hashed assets for a year, and sets `nosniff`,
+  `DENY` framing, a referrer policy, and `noindex` — a private archive has no
+  business in search results.
 
 ---
 
