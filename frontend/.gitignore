@@ -27,3 +27,7 @@ dist-ssr
 .env
 .env.*
 !.env.example
+
+# The production API URL is public and belongs in the repo, so a build never
+# depends on someone remembering to set it in a dashboard.
+!.env.production
