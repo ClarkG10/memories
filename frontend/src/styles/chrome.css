@@ -1,0 +1,281 @@
+/* --------------------------------------------------------------------------
+ * The top bar
+ *
+ * Almost nothing: the archive's name only once you have scrolled past the
+ * masthead, and the owner's two controls.
+ * ----------------------------------------------------------------------- */
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-bar);
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  pointer-events: none;
+}
+
+.topbar > * {
+  pointer-events: auto;
+}
+
+@media (min-width: 900px) {
+  .topbar {
+    padding: var(--space-5) var(--space-7);
+  }
+}
+
+/* The "Add memory" control: present, small, and never louder than a photo. */
+.addbutton {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: color-mix(in srgb, var(--paper-raised) 90%, transparent);
+  backdrop-filter: blur(10px);
+  color: var(--ink-soft);
+  font-size: 0.875rem;
+  transition:
+    border-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.addbutton:hover {
+  border-color: var(--blue);
+  color: var(--blue-deep);
+}
+
+.addbutton__plus {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+@media (max-width: 599px) {
+  /* On a phone the label goes and the control becomes a circle, so it never
+     crowds the top of a photograph. */
+  .addbutton {
+    width: 40px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .addbutton__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * The per-memory action menu
+ * ----------------------------------------------------------------------- */
+
+.actions {
+  position: relative;
+}
+
+.actions__trigger {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  color: var(--ink-faint);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.actions__trigger:hover,
+.actions__trigger[aria-expanded='true'] {
+  background: var(--paper-sunk);
+  color: var(--ink-soft);
+}
+
+.actions__menu {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  right: 0;
+  z-index: var(--z-bar);
+  min-width: 12rem;
+  padding: var(--space-2);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lift);
+}
+
+.actions__item {
+  display: block;
+  width: 100%;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  text-align: left;
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  transition: background-color var(--duration-quick) var(--ease);
+}
+
+.actions__item:hover {
+  background: var(--paper-sunk);
+  color: var(--ink);
+}
+
+.actions__item--remove:hover {
+  color: #a4383a;
+}
+
+/* --------------------------------------------------------------------------
+ * Dialogs — used by sign-in and by the removal confirmation
+ * ----------------------------------------------------------------------- */
+
+.scrim {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-sheet);
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgba(13, 19, 25, 0.28);
+  backdrop-filter: blur(6px);
+  animation: fade-in var(--duration) var(--ease);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.dialog {
+  width: 100%;
+  max-width: 26rem;
+  padding: var(--space-6);
+  background: var(--paper-raised);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lift);
+  animation: dialog-in var(--duration) var(--ease-out-soft);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dialog {
+    animation: none;
+  }
+}
+
+.dialog__title {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  line-height: 1.2;
+}
+
+.dialog__body {
+  margin-top: var(--space-3);
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.65;
+}
+
+.dialog__fields {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.dialog__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 480px) {
+  .dialog__actions {
+    flex-direction: column-reverse;
+  }
+
+  .dialog__actions .button {
+    width: 100%;
+  }
+}
+
+.dialog__error {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius);
+  background: #fdf3f3;
+  color: #8f3033;
+  font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Toasts
+ * ----------------------------------------------------------------------- */
+
+.toasts {
+  position: fixed;
+  left: 50%;
+  bottom: var(--space-5);
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: min(26rem, calc(100vw - 2rem));
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow-lift);
+  font-size: 0.875rem;
+  color: var(--ink-soft);
+  animation: toast-in var(--duration) var(--ease-out-soft);
+}
+
+.toast--error {
+  border-color: #f0d6d7;
+  background: #fdf7f7;
+  color: #8f3033;
+}
+
+.toast__action {
+  flex: 0 0 auto;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--blue-deep);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}

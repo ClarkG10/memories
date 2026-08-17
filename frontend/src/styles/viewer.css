@@ -1,0 +1,244 @@
+/* --------------------------------------------------------------------------
+ * The memory viewer
+ *
+ * The one place the archive goes dark. Everything else is paper; here the room
+ * dims so the photograph is the only thing lit.
+ * ----------------------------------------------------------------------- */
+
+.viewer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-viewer);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  background: var(--viewer-backdrop);
+  backdrop-filter: blur(20px);
+  color: var(--viewer-ink);
+  animation: viewer-in var(--duration) var(--ease-out-soft);
+}
+
+@keyframes viewer-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer {
+    animation: none;
+  }
+}
+
+.viewer__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+}
+
+.viewer__count {
+  font-size: 0.75rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--viewer-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.viewer__close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--viewer-ink);
+  transition: background-color var(--duration-quick) var(--ease);
+}
+
+.viewer__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* --- The stage -------------------------------------------------------- */
+
+.viewer__stage {
+  position: relative;
+  min-height: 0;
+  touch-action: pan-y;
+}
+
+/*
+ | The photograph is measured against this box rather than against the grid
+ | row. A percentage max-height on a grid item is not reliably resolved when
+ | the row is flexible, and the consequence is a tall photograph overflowing
+ | its track and covering the words underneath it.
+ */
+.viewer__frame {
+  position: absolute;
+  inset: 0 var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@media (min-width: 900px) {
+  .viewer__frame {
+    inset: 0 var(--space-9);
+  }
+}
+
+/*
+ | The photograph is sized to the frame and letterboxed inside it, rather than
+ | sized to itself and clamped by a percentage max-height. A percentage there
+ | resolves against the grid area, which is auto-sized by its own content — so
+ | a tall photograph sets the limit it is supposed to be obeying, overflows,
+ | and covers the words underneath.
+ */
+.viewer__media,
+.viewer__video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.viewer__media {
+  border-radius: var(--radius);
+  animation: media-in var(--duration) var(--ease-out-soft);
+}
+
+@keyframes media-in {
+  from {
+    opacity: 0;
+    transform: scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewer__media {
+    animation: none;
+  }
+}
+
+/* No black plate behind the video: with object-fit the element covers the
+   whole frame, and a background would paint over the darkened room. */
+.viewer__video {
+  border-radius: var(--radius);
+  background: transparent;
+}
+
+/* --- Moving between media --------------------------------------------- */
+
+.viewer__step {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  /* Above the photograph, which now fills the stage. */
+  z-index: 1;
+  display: none;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  color: var(--viewer-ink);
+  background: rgba(255, 255, 255, 0.06);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    opacity var(--duration-quick) var(--ease);
+}
+
+@media (min-width: 900px) {
+  .viewer__step {
+    display: grid;
+  }
+}
+
+.viewer__step:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.viewer__step--prev {
+  left: var(--space-4);
+}
+
+.viewer__step--next {
+  right: var(--space-4);
+}
+
+/* --- The words -------------------------------------------------------- */
+
+.viewer__caption {
+  padding: var(--space-5) var(--space-5) var(--space-6);
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .viewer__caption {
+    padding-bottom: var(--space-7);
+  }
+}
+
+.viewer__date {
+  color: var(--viewer-ink-soft);
+}
+
+.viewer__title {
+  margin-top: var(--space-3);
+  font-family: var(--font-display);
+  font-size: clamp(1.5rem, 3.5vw, 2.25rem);
+  line-height: 1.2;
+  color: var(--viewer-ink);
+}
+
+.viewer__description {
+  max-width: 40rem;
+  margin: var(--space-4) auto 0;
+  color: var(--viewer-ink-soft);
+  font-size: 0.9375rem;
+  line-height: 1.7;
+}
+
+.viewer__where {
+  margin-top: var(--space-3);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--viewer-ink-soft);
+}
+
+/* Small dots for the media in this memory; a thumbnail strip would compete
+   with the photograph that is actually on screen. */
+.viewer__dots {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+/*
+ | Six pixels to look at, forty-four to press. On a phone these are the only
+ | control for moving between a memory's photographs, and a 6px target sitting
+ | near the home indicator is not one.
+ */
+.viewer__dot {
+  width: 6px;
+  height: 6px;
+  padding: 19px;
+  box-sizing: content-box;
+  background-clip: content-box;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.28);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    transform var(--duration-quick) var(--ease);
+}
+
+.viewer__dot[aria-current='true'] {
+  background-color: var(--blue);
+  transform: scale(1.35);
+}
+
+.viewer__loading {
+  display: grid;
+  place-items: center;
+  color: var(--viewer-ink-soft);
+  font-size: 0.875rem;
+}

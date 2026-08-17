@@ -1,0 +1,520 @@
+/* --------------------------------------------------------------------------
+ * The masthead
+ *
+ * The first thing anyone sees. Generous, quiet, and over quickly — the point
+ * of the page is below it.
+ * ----------------------------------------------------------------------- */
+
+/*
+ | Deliberately short. The archive is the photographs, and someone opening it
+ | should meet one straight away rather than a title page they have to scroll
+ | past every single time.
+ */
+.masthead {
+  padding-block: var(--space-7) var(--space-6);
+  text-align: center;
+}
+
+@media (min-width: 900px) {
+  .masthead {
+    padding-block: var(--space-8) var(--space-7);
+  }
+}
+
+.masthead__title {
+  font-size: clamp(2.75rem, 7vw, 5rem);
+}
+
+.masthead__quote {
+  margin-top: var(--space-5);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: clamp(1.05rem, 2.2vw, 1.375rem);
+  color: var(--ink-muted);
+}
+
+/* A hairline that stops short of the edges: a page rule, not a divider. */
+.masthead__rule {
+  width: 3rem;
+  height: 1px;
+  margin: var(--space-6) auto 0;
+  background: var(--blue);
+  border: none;
+}
+
+/* --------------------------------------------------------------------------
+ * Year navigation
+ * ----------------------------------------------------------------------- */
+
+/* Desktop: a quiet column of years down the right edge. */
+.rail {
+  position: fixed;
+  top: 50%;
+  right: max(var(--space-4), calc((100vw - var(--page-max)) / 2 - 4.5rem));
+  transform: translateY(-50%);
+  z-index: var(--z-rail);
+  display: none;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: flex-end;
+}
+
+@media (min-width: 1140px) {
+  .rail {
+    display: flex;
+  }
+}
+
+.rail__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  font-family: var(--font-display);
+  font-size: 1.0625rem;
+  /* Legible at rest, not just on hover: these are the archive's navigation. */
+  color: var(--ink-muted);
+  transition: color var(--duration-quick) var(--ease);
+}
+
+.rail__item:hover {
+  color: var(--ink-soft);
+}
+
+.rail__item[aria-current='true'] {
+  color: var(--ink);
+}
+
+/* The marker grows into a short line for the year being shown. */
+.rail__mark {
+  width: 8px;
+  height: 1px;
+  background: var(--ink-faint);
+  transition:
+    width var(--duration) var(--ease),
+    background-color var(--duration) var(--ease);
+}
+
+.rail__item[aria-current='true'] .rail__mark {
+  width: 22px;
+  background: var(--blue-deep);
+}
+
+/* Mobile and tablet: the same years as a scrollable strip. */
+.yearstrip {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-bar);
+  display: flex;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+
+  /* Reaches the screen edges even though it sits inside the padded page, so
+     the years scroll under the thumb rather than in a boxed-in strip. */
+  margin-inline: calc(var(--space-5) * -1);
+
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: color-mix(in srgb, var(--paper) 88%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+
+.yearstrip::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 1140px) {
+  .yearstrip {
+    display: none;
+  }
+}
+
+.yearstrip__item {
+  flex: 0 0 auto;
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.yearstrip__item[aria-current='true'] {
+  background: var(--blue-wash);
+  border-color: var(--blue-light);
+  color: var(--blue-deep);
+}
+
+/* --------------------------------------------------------------------------
+ * Year and month headings
+ *
+ * Time is the organiser, so the year is the largest thing on the page after
+ * the photographs themselves.
+ * ----------------------------------------------------------------------- */
+
+.year {
+  padding-block: var(--space-8) var(--space-6);
+}
+
+.year__heading {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+}
+
+.year__number {
+  font-family: var(--font-display);
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  line-height: 1;
+  color: var(--ink);
+}
+
+.year__rule {
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
+.year__count {
+  flex: 0 0 auto;
+}
+
+.month {
+  margin-bottom: var(--space-5);
+  padding-top: var(--space-6);
+}
+
+/* --------------------------------------------------------------------------
+ * A memory
+ * ----------------------------------------------------------------------- */
+
+.plate {
+  margin-bottom: var(--space-8);
+}
+
+@media (min-width: 900px) {
+  .plate {
+    margin-bottom: var(--space-9);
+  }
+}
+
+.plate__frame {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border-radius: var(--radius-lg);
+}
+
+/*
+ | Single photograph: the width follows the orientation, so a portrait is not
+ | stretched across the page and a panorama is not cramped.
+ |
+ | The constraint sits on the wrapper, not on the photograph, so the words
+ | underneath begin at the same edge the picture does. A centred image over a
+ | page-wide caption reads as two unrelated things.
+ */
+.plate__inner {
+  margin-inline: auto;
+}
+
+.plate__inner--portrait {
+  max-width: 34rem;
+}
+
+.plate__inner--square {
+  max-width: 44rem;
+}
+
+.plate__inner--landscape {
+  max-width: 58rem;
+}
+
+/* Several photographs: a lead image with its companions beside it. */
+.plate__cluster {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (min-width: 900px) {
+  .plate__cluster {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
+    align-items: start;
+  }
+
+  /* Alternating the side gives the column a rhythm without any decoration. */
+  .plate[data-flip='true'] .plate__cluster {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 7fr);
+  }
+
+  .plate[data-flip='true'] .plate__lead {
+    order: 2;
+  }
+}
+
+.plate__companions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (min-width: 900px) {
+  .plate__companions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* "+3" over the last companion when a memory holds more than fits. */
+.plate__more {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(9, 14, 19, 0.42);
+  color: #fff;
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  border-radius: inherit;
+}
+
+.plate__companion {
+  position: relative;
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.plate__caption {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-4);
+}
+
+.plate__meta {
+  min-width: 0;
+}
+
+.plate__date {
+  display: block;
+  margin-bottom: var(--space-2);
+}
+
+.plate__title {
+  font-family: var(--font-display);
+  font-size: clamp(1.4rem, 2.6vw, 1.9rem);
+  line-height: 1.2;
+  color: var(--ink);
+}
+
+.plate__where {
+  margin-top: var(--space-2);
+  font-size: 0.875rem;
+  color: var(--ink-muted);
+}
+
+.plate__where::before {
+  content: '';
+  display: inline-block;
+  width: 3px;
+  height: 3px;
+  margin-right: var(--space-2);
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--blue);
+}
+
+/* The owner's controls. Present, but never competing with a photograph:
+   they fade in on hover, and stay reachable on touch where hover has no
+   meaning. */
+.plate__actions {
+  flex: 0 0 auto;
+  opacity: 0;
+  transition: opacity var(--duration-quick) var(--ease);
+}
+
+.plate:hover .plate__actions,
+.plate__actions:focus-within {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .plate__actions {
+    opacity: 1;
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Media
+ * ----------------------------------------------------------------------- */
+
+.media {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper-sunk);
+  border-radius: var(--radius);
+}
+
+.media__placeholder,
+.media__image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* The blur-up: a 20-pixel-wide image, scaled and softened, standing in until
+   the real photograph has decoded. */
+.media__placeholder {
+  filter: blur(18px);
+  transform: scale(1.08);
+  transition: opacity var(--duration-slow) var(--ease);
+}
+
+.media[data-loaded='true'] .media__placeholder {
+  opacity: 0;
+}
+
+.media__image {
+  opacity: 0;
+  transition: opacity var(--duration-slow) var(--ease);
+}
+
+.media[data-loaded='true'] .media__image {
+  opacity: 1;
+}
+
+/* A video whose poster Drive has not produced yet. */
+.media__pending {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(160deg, var(--blue-wash), var(--blue-light));
+}
+
+.media__play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  box-shadow: var(--shadow-soft);
+  transition: transform var(--duration) var(--ease);
+}
+
+.plate__frame:hover .media__play {
+  transform: translate(-50%, -50%) scale(1.06);
+}
+
+.media__duration {
+  position: absolute;
+  right: var(--space-3);
+  bottom: var(--space-3);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: rgba(9, 14, 19, 0.6);
+  color: #fff;
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+/* Desktop hover: the faintest lift. */
+@media (hover: hover) and (min-width: 900px) {
+  .plate__frame .media {
+    transition: transform var(--duration-slow) var(--ease-out-soft);
+  }
+
+  .plate__frame:hover .media__image {
+    transform: scale(1.015);
+  }
+
+  .plate__frame .media__image {
+    transition:
+      opacity var(--duration-slow) var(--ease),
+      transform var(--duration-slow) var(--ease-out-soft);
+  }
+}
+
+/* --------------------------------------------------------------------------
+ * Empty, loading and error
+ * ----------------------------------------------------------------------- */
+
+.empty {
+  padding-block: var(--space-9);
+  text-align: center;
+}
+
+.empty__line {
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 4vw, 2.4rem);
+  line-height: 1.25;
+  color: var(--ink);
+}
+
+.empty__hint {
+  margin-top: var(--space-4);
+  color: var(--ink-muted);
+}
+
+.empty__action {
+  margin-top: var(--space-6);
+}
+
+.notice {
+  max-width: var(--measure);
+  margin: var(--space-7) auto;
+  padding: var(--space-5);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--paper-raised);
+  text-align: center;
+}
+
+.notice__message {
+  color: var(--ink-soft);
+}
+
+.notice__action {
+  margin-top: var(--space-4);
+}
+
+.timeline__loading {
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--space-7);
+}
+
+.timeline__sentinel {
+  height: 1px;
+}
+
+.timeline__more {
+  padding-block: var(--space-7);
+  text-align: center;
+  color: var(--ink-muted);
+  font-size: 0.875rem;
+}
+
+.timeline__end {
+  padding-block: var(--space-8) var(--space-9);
+  text-align: center;
+}
+
+.timeline__end span {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--blue);
+}

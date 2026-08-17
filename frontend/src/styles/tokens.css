@@ -1,0 +1,93 @@
+/*
+ * The whole visual language, in one place.
+ *
+ * Light blue, white and black — but soft. The blues are desaturated so they
+ * read as light on paper rather than as interface chrome, and the "black" is a
+ * blue-leaning near-black so nothing on the page is colder than the photographs.
+ */
+
+:root {
+  /* --- Paper ------------------------------------------------------------ */
+  --paper: #fbfcfe;
+  --paper-raised: #ffffff;
+  --paper-sunk: #f2f6fa;
+  --paper-tint: #eaf1f8;
+
+  /* --- Ink -------------------------------------------------------------- */
+  --ink: #0d1319;
+  --ink-soft: #47565f;
+  /*
+   | Dates, month labels and counts all use this, and they are small. It is
+   | set dark enough to clear WCAG AA against the paper rather than as light
+   | as it could be — quiet has to stop where legible begins.
+   */
+  --ink-muted: #5e6c78;
+  /* Decorative only: rules, marks, resting icons. Never body text. */
+  --ink-faint: #9aa8b4;
+
+  /* --- Blue ------------------------------------------------------------- */
+  /* Decorative fills and washes. */
+  --blue: #9cc6ea;
+  --blue-light: #d6e7f6;
+  --blue-wash: #eef5fb;
+  /* Anything a person reads or clicks: carries contrast on white. */
+  --blue-deep: #2f6ea8;
+  --blue-deeper: #1f5581;
+
+  /* --- Lines and shadow ------------------------------------------------- */
+  --line: rgba(13, 19, 25, 0.08);
+  --line-strong: rgba(13, 19, 25, 0.14);
+  --shadow-soft: 0 2px 8px rgba(23, 48, 71, 0.05), 0 12px 32px rgba(23, 48, 71, 0.06);
+  --shadow-lift: 0 4px 14px rgba(23, 48, 71, 0.08), 0 24px 56px rgba(23, 48, 71, 0.1);
+
+  /* --- The viewer ------------------------------------------------------- */
+  --viewer-backdrop: rgba(9, 14, 19, 0.94);
+  --viewer-ink: #f4f8fb;
+  --viewer-ink-soft: rgba(244, 248, 251, 0.62);
+
+  /* --- Type ------------------------------------------------------------- */
+  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-ui: 'Inter Variable', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* --- Rhythm ----------------------------------------------------------- */
+  /* One scale, used everywhere, so spacing never looks improvised. */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --space-8: 4.5rem;
+  --space-9: 7rem;
+  --space-10: 11rem;
+
+  --radius-sm: 3px;
+  --radius: 6px;
+  --radius-lg: 10px;
+
+  --measure: 34rem;
+  --page-max: 74rem;
+
+  /* --- Motion ----------------------------------------------------------- */
+  /* Slow and soft. Nothing here should feel eager. */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+  --duration-quick: 220ms;
+  --duration: 420ms;
+  --duration-slow: 760ms;
+
+  --z-rail: 20;
+  --z-bar: 40;
+  --z-sheet: 60;
+  --z-viewer: 80;
+  --z-toast: 100;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-quick: 1ms;
+    --duration: 1ms;
+    --duration-slow: 1ms;
+  }
+}

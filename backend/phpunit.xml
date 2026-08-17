@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+>
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Feature">
+            <directory>tests/Feature</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>app</directory>
+        </include>
+    </source>
+    <php>
+        <env name="APP_ENV" value="testing"/>
+        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
+        <env name="BCRYPT_ROUNDS" value="4"/>
+        <env name="BROADCAST_CONNECTION" value="null"/>
+        <env name="CACHE_STORE" value="array"/>
+
+        <!--
+          MySQL rather than SQLite: the timeline relies on YEAR() grouping and
+          on per-parent eager-load limits, which compile to window functions.
+          Testing against a different engine than production would prove the
+          wrong thing.
+        -->
+        <env name="DB_CONNECTION" value="mysql"/>
+        <env name="DB_DATABASE" value="memories_test"/>
+        <env name="DB_URL" value=""/>
+
+        <env name="MAIL_MAILER" value="array"/>
+        <env name="QUEUE_CONNECTION" value="sync"/>
+        <env name="SESSION_DRIVER" value="array"/>
+
+        <env name="ARCHIVE_PUBLIC" value="true"/>
+        <env name="AUTH_GUARD" value="sanctum"/>
+
+        <!-- Drive is always a test double; these keep isConfigured() honest. -->
+        <env name="GOOGLE_DRIVE_AUTH" value="oauth"/>
+        <env name="GOOGLE_DRIVE_CLIENT_ID" value="test-client-id"/>
+        <env name="GOOGLE_DRIVE_CLIENT_SECRET" value="test-client-secret"/>
+        <env name="GOOGLE_DRIVE_REFRESH_TOKEN" value="test-refresh-token"/>
+
+        <!-- Small enough that a test file spans several chunks. -->
+        <env name="UPLOAD_CHUNK_BYTES" value="1024"/>
+    </php>
+</phpunit>

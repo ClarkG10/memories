@@ -1,0 +1,5 @@
+# Local development conveniences that belong to this machine only.
+/.dev/
+
+.DS_Store
+*.log
