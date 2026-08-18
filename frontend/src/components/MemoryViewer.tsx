@@ -24,13 +24,80 @@ const SWIPE_THRESHOLD = 56
  * as the screen allows, and the words sit quietly underneath. Arrow keys and
  * swipes move between the media; Escape and the browser's back button both
  * close it.
+ *
+ * There is a quieter state past that one. Sometimes the date and the title are
+ * the whole point of a memory, and sometimes they are in the way of it: "bare"
+ * takes the words away and gives the photograph everything, edge to edge. It
+ * is reached by pressing the photograph, or by the control in the bar, and it
+ * takes the browser's own chrome with it where the browser allows that.
  */
 export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdit }: Props) {
   const query = useMemory(memoryId)
   const [index, setIndex] = useState(initialIndex)
-  const containerRef = useOverlay(true, onClose)
-  const { isFullscreen, toggle: toggleFullscreen, supported: canGoFullscreen } = useFullscreen(containerRef)
+  const [bare, setBare] = useState(false)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
+  /* A swipe ends in a click as far as the browser is concerned. */
+  const swiped = useRef(false)
+  /* Only give the browser's chrome back if going bare is what took it. */
+  const tookTheChrome = useRef(false)
+
+  const leaveBare = useCallback(() => {
+    setBare(false)
+
+    if (!tookTheChrome.current) return
+
+    tookTheChrome.current = false
+
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => undefined)
+  }, [])
+
+  const containerRef = useOverlay(true, () => {
+    // Escape steps back out of bare before it closes the memory altogether.
+    if (bare) {
+      leaveBare()
+
+      return
+    }
+
+    onClose()
+  })
+  const { isFullscreen, toggle: toggleFullscreen, supported: canGoFullscreen } = useFullscreen(containerRef)
+
+  const toggleBare = useCallback(() => {
+    // The click a swipe leaves behind would otherwise flip this on every
+    // sideways movement through a memory.
+    if (swiped.current) {
+      swiped.current = false
+
+      return
+    }
+
+    if (bare) {
+      leaveBare()
+
+      return
+    }
+
+    setBare(true)
+
+    if (canGoFullscreen && !isFullscreen) {
+      tookTheChrome.current = true
+      toggleFullscreen()
+    }
+  }, [bare, canGoFullscreen, isFullscreen, leaveBare, toggleFullscreen])
+
+  /*
+   | Leaving fullscreen by any other route — Escape, which the browser handles
+   | itself before the page hears it, or the system's own control — should come
+   | back to the words as well. Anything else strands someone in a bare screen
+   | wondering where the memory went.
+   */
+  useEffect(() => {
+    if (isFullscreen || !tookTheChrome.current) return
+
+    tookTheChrome.current = false
+    setBare(false)
+  }, [isFullscreen])
 
   const media = query.data?.media ?? []
   const current: Media | undefined = media[index]
@@ -69,6 +136,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
   const onTouchStart = (event: React.TouchEvent) => {
     const touch = event.touches[0]
     touchStart.current = { x: touch.clientX, y: touch.clientY }
+    swiped.current = false
   }
 
   const onTouchEnd = (event: React.TouchEvent) => {
@@ -85,6 +153,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
     // photograph by accident.
     if (Math.abs(dx) < SWIPE_THRESHOLD || Math.abs(dx) < Math.abs(dy)) return
 
+    swiped.current = true
     step(dx < 0 ? 1 : -1)
   }
 
@@ -96,10 +165,11 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
       aria-label={query.data?.title ?? 'Memory'}
       ref={containerRef}
       tabIndex={-1}
+      data-bare={bare}
     >
       <div className="viewer__bar">
         <span className="viewer__count">
-          {count > 1 ? `${index + 1} / ${count}` : ''}
+          {count > 1 && !bare ? `${index + 1} / ${count}` : ''}
         </span>
 
         <div className="viewer__actions">
@@ -108,7 +178,18 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
             | is actually noticed — while looking at the memory — and closing
             | the viewer to go and find the card again is a poor answer to it.
           */}
-          {canGoFullscreen && (
+          <button
+            type="button"
+            className="viewer__icon"
+            onClick={toggleBare}
+            aria-label={bare ? 'Show the words' : 'Photograph only'}
+            title={bare ? 'Show the words' : 'Photograph only'}
+          >
+            {bare ? <ContractIcon /> : <ExpandIcon />}
+          </button>
+
+          {/* Kept as its own thing: a bigger window, with the words still on. */}
+          {canGoFullscreen && !bare && (
             <button
               type="button"
               className="viewer__icon"
@@ -120,7 +201,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
             </button>
           )}
 
-          {canManage && query.data && (
+          {canManage && !bare && query.data && (
             <button
               type="button"
               className="viewer__edit"
@@ -161,7 +242,13 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
             />
           )}
 
-          {current && <Stage media={current} title={query.data?.title ?? ''} />}
+          {current && (
+            <Stage
+              media={current}
+              title={query.data?.title ?? ''}
+              onToggleBare={toggleBare}
+            />
+          )}
         </div>
 
         {count > 1 && (
@@ -189,8 +276,14 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
         )}
       </div>
 
-      <div className="viewer__caption">
-        {query.data && (
+      {/*
+        | Taken off the screen rather than merely hidden on it. "Not on this
+        | screen" is a fact about the memory being shown, not about the
+        | stylesheet, and leaving the words in the document to be covered up
+        | is how they come back the moment a rule moves.
+      */}
+      <div className="viewer__caption" hidden={bare}>
+        {query.data && !bare && (
           <>
             <time className="label viewer__date" dateTime={query.data.memory_date}>
               {formatLongDate(query.data.memory_date)}
@@ -229,7 +322,15 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
   )
 }
 
-function Stage({ media, title }: { media: Media; title: string }) {
+function Stage({
+  media,
+  title,
+  onToggleBare,
+}: {
+  media: Media
+  title: string
+  onToggleBare: () => void
+}) {
   if (media.type === 'video') {
     return (
       <video
@@ -247,14 +348,26 @@ function Stage({ media, title }: { media: Media; title: string }) {
     )
   }
 
+  /*
+   | The photograph is wrapped in the control rather than having an invisible
+   | one laid over it: a real button is reachable by keyboard and announces
+   | itself, and there is no stack of transparent layers to get wrong.
+   |
+   | Deliberately unlabelled, so the photograph's own description names it.
+   | Labelling it would say "Photograph only" twice in a row to anyone moving
+   | through by keyboard — once here and once in the bar — and would talk over
+   | the one thing on the screen worth describing.
+   */
   return (
-    <img
-      key={media.id}
-      className="viewer__media"
-      src={media.urls.full ?? media.urls.display}
-      alt={title}
-      decoding="async"
-    />
+    <button type="button" className="viewer__surface" onClick={onToggleBare}>
+      <img
+        key={media.id}
+        className="viewer__media"
+        src={media.urls.full ?? media.urls.display}
+        alt={title}
+        decoding="async"
+      />
+    </button>
   )
 }
 
@@ -279,6 +392,36 @@ function ExitFullscreenIcon() {
     <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none">
       <path
         d="M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** Two diagonals pushing out to the corners: give it everything. */
+function ExpandIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none">
+      <path
+        d="M14 4h6v6M10 20H4v-6M20 4l-7 7M4 20l7-7"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** The same diagonals drawing back in. */
+function ContractIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none">
+      <path
+        d="M20 10h-6V4M4 14h6v6M14 10l6-6M10 14l-6 6"
         stroke="currentColor"
         strokeWidth="1.5"
         strokeLinecap="round"

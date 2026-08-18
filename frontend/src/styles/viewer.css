@@ -133,11 +133,22 @@
  | a tall photograph sets the limit it is supposed to be obeying, overflows,
  | and covers the words underneath.
  */
+.viewer__surface,
 .viewer__media,
 .viewer__video {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* Pressing the photograph is how the words go away and come back. */
+.viewer__surface {
+  display: block;
+  cursor: zoom-in;
+}
+
+.viewer[data-bare='true'] .viewer__surface {
+  cursor: zoom-out;
 }
 
 .viewer__media {
@@ -280,4 +291,66 @@
   place-items: center;
   color: var(--viewer-ink-soft);
   font-size: 0.875rem;
+}
+
+/* --------------------------------------------------------------------------
+ * Bare: the photograph and nothing else
+ *
+ * Not a separate screen — the same one, with everything that is not the
+ * photograph taken off it. The words go, the letterboxing goes, the rounded
+ * corners go, and the room goes properly dark rather than merely dim.
+ *
+ * What stays is a small cluster of controls in the corner, resting at a third
+ * of their weight. A photograph with no way back out of it is a trap, and on a
+ * phone there is no Escape key to fall back on.
+ * ----------------------------------------------------------------------- */
+
+.viewer[data-bare='true'] {
+  /*
+   | One row, because the bar is lifted out of the flow and the caption is gone
+   | altogether. Left at three, the stage would fall into the first — which is
+   | auto-sized, and would collapse to the height of the photograph's own box.
+   */
+  grid-template-rows: minmax(0, 1fr);
+  background: #05080b;
+  backdrop-filter: none;
+}
+
+/* The caption carries `hidden` as well; this is the layout half of it. */
+.viewer[data-bare='true'] .viewer__caption {
+  display: none;
+}
+
+.viewer[data-bare='true'] .viewer__bar {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  padding: var(--space-3) var(--space-3);
+  opacity: 0.32;
+  transition: opacity var(--duration-quick) var(--ease);
+}
+
+.viewer[data-bare='true'] .viewer__bar:hover,
+.viewer[data-bare='true'] .viewer__bar:focus-within {
+  opacity: 1;
+}
+
+/* Edge to edge: the gutters exist to keep the photograph off the words. */
+.viewer[data-bare='true'] .viewer__frame {
+  inset: 0;
+}
+
+.viewer[data-bare='true'] .viewer__media,
+.viewer[data-bare='true'] .viewer__video {
+  border-radius: 0;
+}
+
+.viewer[data-bare='true'] .viewer__step {
+  opacity: 0.32;
+}
+
+.viewer[data-bare='true'] .viewer__step:hover,
+.viewer[data-bare='true'] .viewer__step:focus-visible {
+  opacity: 1;
 }

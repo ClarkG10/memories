@@ -1,4 +1,4 @@
-import { screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import {
@@ -175,15 +175,24 @@ describe('opening a memory', () => {
   })
 })
 
+/** jsdom has no Fullscreen API, so stand one in. */
+function stubFullscreen() {
+  const request = vi.fn().mockResolvedValue(undefined)
+  const exit = vi.fn().mockResolvedValue(undefined)
+
+  Object.defineProperty(document, 'fullscreenEnabled', { value: true, configurable: true })
+  Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+  Element.prototype.requestFullscreen = request
+  document.exitFullscreen = exit
+
+  return { request, exit }
+}
+
 describe('filling the screen', () => {
-    it('offers a way to fill the screen', async () => {
+  it('offers a way to fill the screen', async () => {
     mockApi(baseHandlers())
 
-    // jsdom has no Fullscreen API, so stand one in.
-    const request = vi.fn().mockResolvedValue(undefined)
-    Object.defineProperty(document, 'fullscreenEnabled', { value: true, configurable: true })
-    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
-    Element.prototype.requestFullscreen = request
+    const { request } = stubFullscreen()
 
     renderArchive('/m/memory-1')
 
@@ -198,4 +207,117 @@ describe('filling the screen', () => {
 
     expect(request).toHaveBeenCalled()
   })
+})
+
+describe('the photograph on its own', () => {
+  it('takes the words away, and the browser chrome with them', async () => {
+    mockApi(baseHandlers())
+
+    const { request } = stubFullscreen()
+
+    renderArchive('/m/memory-1')
+
+    // The viewer opens before the memory arrives; wait for the memory.
+    const viewer = await screen.findByRole('dialog', { name: 'That Beautiful Evening' })
+
+    // The words are there to begin with.
+    expect(within(viewer).getByText('10 August 2026')).toBeInTheDocument()
+    expect(viewer).toHaveAttribute('data-bare', 'false')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Photograph only' }))
+
+    expect(viewer).toHaveAttribute('data-bare', 'true')
+    // Asking for the whole screen is part of asking for the whole photograph.
+    expect(request).toHaveBeenCalled()
+    // Nothing left to read: not the date, not the title, not the count.
+    expect(within(viewer).queryByText('10 August 2026')).not.toBeInTheDocument()
+    expect(within(viewer).queryByRole('heading', { name: 'That Beautiful Evening' })).not.toBeInTheDocument()
+    expect(within(viewer).queryByRole('button', { name: 'Edit' })).not.toBeInTheDocument()
   })
+
+  it('comes back, so nobody is stranded in it', async () => {
+    mockApi(baseHandlers())
+
+    stubFullscreen()
+
+    renderArchive('/m/memory-1')
+
+    // The viewer opens before the memory arrives; wait for the memory.
+    const viewer = await screen.findByRole('dialog', { name: 'That Beautiful Evening' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Photograph only' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Show the words' }))
+
+    expect(viewer).toHaveAttribute('data-bare', 'false')
+    expect(within(viewer).getByText('10 August 2026')).toBeInTheDocument()
+  })
+
+  it('is reached by pressing the photograph itself', async () => {
+    mockApi(baseHandlers())
+
+    stubFullscreen()
+
+    renderArchive('/m/memory-1')
+
+    // The viewer opens before the memory arrives; wait for the memory.
+    const viewer = await screen.findByRole('dialog', { name: 'That Beautiful Evening' })
+
+    // The photograph is the control: that was the whole point of the gesture.
+    await userEvent.click(within(viewer).getByRole('button', { name: 'That Beautiful Evening' }))
+
+    expect(viewer).toHaveAttribute('data-bare', 'true')
+  })
+
+  it('steps back out of bare on Escape rather than closing the memory', async () => {
+    mockApi(baseHandlers())
+
+    stubFullscreen()
+
+    renderArchive('/m/memory-1')
+
+    // The viewer opens before the memory arrives; wait for the memory.
+    const viewer = await screen.findByRole('dialog', { name: 'That Beautiful Evening' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Photograph only' }))
+    await userEvent.keyboard('{Escape}')
+
+    // Still open, words back on.
+    expect(viewer).toHaveAttribute('data-bare', 'false')
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+
+    // The second one closes it, as it always did.
+    await userEvent.keyboard('{Escape}')
+
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    })
+  })
+
+  it('is not flipped by the click a swipe leaves behind', async () => {
+    const memory = aMemory({
+      media_count: 2,
+      media: [anImage({ id: 'one' }), anImage({ id: 'two' })],
+    })
+
+    mockApi(baseHandlers(memory))
+
+    stubFullscreen()
+
+    const { container } = renderArchive('/m/memory-1')
+
+    // The viewer opens before the memory arrives; wait for the memory.
+    const viewer = await screen.findByRole('dialog', { name: 'That Beautiful Evening' })
+    expect(await screen.findByText('1 / 2')).toBeInTheDocument()
+
+    const stage = container.querySelector('.viewer__stage') as HTMLElement
+
+    // A swipe ends in a click on the photograph as far as the browser is
+    // concerned, and that click must not also strip the words away.
+    fireEvent.touchStart(stage, { touches: [{ clientX: 300, clientY: 200 }] })
+    fireEvent.touchEnd(stage, { changedTouches: [{ clientX: 100, clientY: 210 }] })
+    fireEvent.click(within(viewer).getByRole('button', { name: 'That Beautiful Evening' }))
+
+    expect(screen.getByText('2 / 2')).toBeInTheDocument()
+    expect(viewer).toHaveAttribute('data-bare', 'false')
+  })
+})
