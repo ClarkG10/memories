@@ -277,21 +277,47 @@
     /* Equal shares of the lead's height, however many there are. */
     grid-auto-rows: minmax(0, 1fr);
   }
+}
 
-  /*
-   | The companion fills its share exactly, so its own proportions no longer
-   | decide the height of the block. Absolutely positioned because the
-   | intrinsic aspect ratio would otherwise win and reintroduce the gap.
-   */
-  .plate__companion .media {
-    position: absolute;
-    inset: 0;
-    height: 100%;
+/*
+ | A companion is given its shape by the layout, not by the photograph inside
+ | it: square tiles beside each other on a phone, equal shares of the lead's
+ | height on a desktop. Two photographs of different proportions sitting side
+ | by side otherwise end at different heights and the row goes ragged.
+ */
+.plate__companion {
+  aspect-ratio: 1;
+}
+
+@media (min-width: 900px) {
+  .plate__companion {
     aspect-ratio: auto;
   }
 }
 
-/* "+3" over the last companion when a memory holds more than fits. */
+/*
+ | The photograph then fills that tile and crops, the way a contact sheet
+ | crops — the whole frame is one click away in the viewer.
+ |
+ | Both dimensions are stated so both are definite. The component sets an
+ | inline aspect-ratio for a photograph standing on its own, and an inline
+ | style cannot be overridden from a stylesheet: left to itself it sized the
+ | photograph to its own proportions inside a tile of another shape, which is
+ | how a portrait ended up as a strip of picture beside a band of dead grey.
+ */
+.plate__companion .media {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+ | "+3" over the last companion when a memory holds more than fits.
+ |
+ | The shadow is not decoration: the number lands wherever the photograph
+ | happens to be bright, and white on a noon sky is not a legible thing.
+ */
 .plate__more {
   position: absolute;
   inset: 0;
@@ -300,7 +326,8 @@
   background: rgba(9, 14, 19, 0.42);
   color: #fff;
   font-family: var(--font-display);
-  font-size: 1.5rem;
+  font-size: 1.75rem;
+  text-shadow: 0 1px 6px rgba(9, 14, 19, 0.55);
   border-radius: inherit;
 }
 
