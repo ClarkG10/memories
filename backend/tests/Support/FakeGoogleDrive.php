@@ -196,6 +196,38 @@ class FakeGoogleDrive extends GoogleDriveService
         return 'folder-'.Str::slug($name);
     }
 
+    /**
+     * Everything the fake is holding, in the shape the real listing returns.
+     *
+     * @return array<int, array{id: string, name: string, parent: string|null, size: int}>
+     */
+    public function listOwnFiles(): array
+    {
+        if ($this->listException !== null) {
+            throw $this->listException;
+        }
+
+        $files = [];
+
+        foreach ($this->files as $id => $file) {
+            $files[] = [
+                'id' => $id,
+                'name' => $file['name'],
+                'parent' => $file['folder'],
+                'size' => $file['bytes'],
+            ];
+        }
+
+        return $files;
+    }
+
+    public ?GoogleDriveException $listException = null;
+
+    public function folderName(string $folderId): ?string
+    {
+        return $folderId;
+    }
+
     /** Overridable so a test can put the account near its ceiling. */
     public ?int $quotaLimit = 15_000_000_000;
 

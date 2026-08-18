@@ -488,6 +488,76 @@ class GoogleDriveService
     }
 
     /**
+     * Every file this application has put in Drive.
+     *
+     * The `drive.file` scope means Drive only ever shows us what we created,
+     * so this is the archive's own footprint and nothing else in the account.
+     * It answers the one question the database cannot: is there anything up
+     * there that nothing down here knows about?
+     *
+     * @return array<int, array{id: string, name: string, parent: string|null, size: int}>
+     *
+     * @throws GoogleDriveException
+     */
+    public function listOwnFiles(): array
+    {
+        $files = [];
+        $pageToken = null;
+
+        try {
+            do {
+                $result = $this->factory->drive()->files->listFiles([
+                    'q' => sprintf("mimeType != '%s' and trashed = false", self::FOLDER_MIME),
+                    'fields' => 'nextPageToken, files(id,name,size,parents)',
+                    'pageSize' => 1000,
+                    'spaces' => 'drive',
+                    'pageToken' => $pageToken,
+                    'supportsAllDrives' => true,
+                    'includeItemsFromAllDrives' => true,
+                ]);
+
+                foreach ($result->getFiles() as $file) {
+                    $parents = $file->getParents();
+
+                    $files[] = [
+                        'id' => (string) $file->getId(),
+                        'name' => (string) $file->getName(),
+                        'parent' => is_array($parents) && $parents !== [] ? (string) $parents[0] : null,
+                        'size' => (int) $file->getSize(),
+                    ];
+                }
+
+                $pageToken = $result->getNextPageToken();
+            } while ($pageToken !== null);
+        } catch (Throwable $e) {
+            throw GoogleDriveException::from($e, 'Listing the files in Drive failed');
+        }
+
+        return $files;
+    }
+
+    /**
+     * The name of one folder, for turning a parent id back into something a
+     * person can go and find in Drive.
+     */
+    public function folderName(string $folderId): ?string
+    {
+        try {
+            return $this->factory->drive()->files->get($folderId, [
+                'fields' => 'name',
+                'supportsAllDrives' => true,
+            ])->getName();
+        } catch (Throwable $e) {
+            Log::info('Could not read a Drive folder name.', [
+                'folder' => $folderId,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Storage headroom and the connected account, for the health check.
      *
      * @return array{email: string|null, limit: int|null, usage: int|null}
