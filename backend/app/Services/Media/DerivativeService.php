@@ -119,6 +119,15 @@ class DerivativeService
     }
 
     /**
+     * Store a poster this server has already produced — a frame captured by
+     * the browser at upload time — so the proxy never has to wait on Drive.
+     */
+    public function storePoster(MemoryMedia $media, string $jpeg): void
+    {
+        $this->disk()->put("{$media->uuid}/poster.jpg", $jpeg);
+    }
+
+    /**
      * Drop every cached rendition of a piece of media. Called when it is
      * removed, so nothing survives the deletion.
      */

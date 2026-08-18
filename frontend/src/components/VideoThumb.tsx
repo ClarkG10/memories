@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { formatDuration } from '../lib/dates'
 import type { Media } from '../api/types'
 
@@ -17,9 +17,33 @@ interface Props {
  * as a video, just one that is still settling in.
  */
 export function VideoThumb({ media, alt, className }: Props) {
-  const [posterFailed, setPosterFailed] = useState(false)
+  /*
+   | Google generates a video's thumbnail only after it has finished processing
+   | the upload, so a poster can legitimately be missing for a minute and then
+   | appear. Giving up after one miss left the card blank until the whole page
+   | was reloaded, which is the one thing someone will not think to do.
+   */
+  const [attempt, setAttempt] = useState(0)
+  const [gaveUp, setGaveUp] = useState(false)
 
-  const showPoster = Boolean(media.urls.poster) && !posterFailed
+  useEffect(() => {
+    if (attempt === 0 || gaveUp) return
+
+    // Spaced out, and only a few times: this is a picture, not a heartbeat.
+    const delay = [4000, 12000, 30000][attempt - 1]
+
+    if (delay === undefined) {
+      setGaveUp(true)
+
+      return
+    }
+
+    const timer = window.setTimeout(() => setAttempt((n) => n + 1), delay)
+
+    return () => window.clearTimeout(timer)
+  }, [attempt, gaveUp])
+
+  const showPoster = Boolean(media.urls.poster) && !gaveUp
 
   return (
     <div
@@ -33,11 +57,12 @@ export function VideoThumb({ media, alt, className }: Props) {
       {showPoster ? (
         <img
           className="media__image"
-          src={media.urls.poster}
+          // The attempt number busts the browser's cache of the 404.
+          src={attempt === 0 ? media.urls.poster : `${media.urls.poster}?retry=${attempt}`}
           alt={alt}
           loading="lazy"
           decoding="async"
-          onError={() => setPosterFailed(true)}
+          onError={() => setAttempt((n) => n + 1)}
         />
       ) : (
         <div className="media__pending" role="img" aria-label={alt} />

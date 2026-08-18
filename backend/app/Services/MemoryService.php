@@ -485,7 +485,7 @@ class MemoryService
             $session = $entry['session'];
             $file = $entry['file'];
 
-            $memory->media()->create([
+            $media = $memory->media()->create([
                 'type' => (string) $session->type,
                 'drive_file_id' => $file->id,
                 'drive_folder_id' => $entry['folder'],
@@ -506,6 +506,18 @@ class MemoryService
                 'sort_order' => $startingAt + $offset,
                 'deletion_state' => MemoryMedia::DELETION_ACTIVE,
             ]);
+
+            /*
+             | Hand the browser-captured frame to the derivative cache, where
+             | the media proxy already looks for a poster. That makes a video
+             | show a real still the moment it is saved, rather than waiting
+             | for Drive to finish generating one of its own.
+             */
+            $poster = $this->uploads->posterBytes($session);
+
+            if ($poster !== null) {
+                $this->derivatives->storePoster($media, $poster);
+            }
         }
     }
 

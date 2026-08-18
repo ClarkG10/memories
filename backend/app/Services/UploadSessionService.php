@@ -7,6 +7,7 @@ namespace App\Services;
 use App\Models\UploadSession;
 use App\Models\User;
 use App\Services\Media\MediaInspector;
+use App\Services\Media\PosterFrame;
 use App\Services\Media\UnsupportedMediaException;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
@@ -162,7 +163,7 @@ class UploadSessionService
      *
      * @throws UnsupportedMediaException
      */
-    public function complete(UploadSession $session): UploadSession
+    public function complete(UploadSession $session, ?string $posterDataUri = null): UploadSession
     {
         if ($session->isReady()) {
             return $session;
@@ -199,6 +200,22 @@ class UploadSessionService
             throw $e;
         }
 
+        /*
+         | A video has no placeholder of its own — this server cannot decode
+         | one — so the browser sends a frame it captured while previewing the
+         | file. Validated and re-encoded before it is trusted with anything.
+         */
+        $placeholder = $analysis->placeholder;
+
+        if ($analysis->isVideo()) {
+            $poster = PosterFrame::fromDataUri($posterDataUri);
+
+            if ($poster !== null) {
+                $this->disk()->put($this->posterPath($session), $poster);
+                $placeholder = PosterFrame::placeholder($poster);
+            }
+        }
+
         $session->forceFill([
             'mime_type' => $analysis->mimeType,
             'type' => $analysis->type,
@@ -208,7 +225,7 @@ class UploadSessionService
             'width' => $analysis->width,
             'height' => $analysis->height,
             'duration_ms' => $analysis->durationMs,
-            'placeholder' => $analysis->placeholder,
+            'placeholder' => $placeholder,
             'status' => UploadSession::STATUS_READY,
         ])->save();
 
@@ -219,6 +236,21 @@ class UploadSessionService
         ]);
 
         return $session;
+    }
+
+    /**
+     * Where a captured video frame waits until a memory claims the upload.
+     */
+    public function posterPath(UploadSession $session): string
+    {
+        return "{$session->uuid}/poster.jpg";
+    }
+
+    public function posterBytes(UploadSession $session): ?string
+    {
+        $path = $this->posterPath($session);
+
+        return $this->disk()->exists($path) ? $this->disk()->get($path) : null;
     }
 
     public function absolutePath(UploadSession $session): string

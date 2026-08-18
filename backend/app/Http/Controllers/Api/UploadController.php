@@ -73,7 +73,11 @@ class UploadController extends Controller
     {
         $this->authoriseSession($request, $upload);
 
-        $session = $this->uploads->complete($upload);
+        /*
+         | Optional: a still the browser captured from the video. Absent for
+         | photographs, and absent for videos the browser could not decode.
+         */
+        $session = $this->uploads->complete($upload, $request->string('poster')->value() ?: null);
 
         return response()->json(['data' => $this->present($session)]);
     }

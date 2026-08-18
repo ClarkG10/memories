@@ -15,6 +15,8 @@ export interface UploadOptions {
   onSession?: (sessionId: string) => void
   /** A session from a previous attempt; only its missing chunks are sent. */
   resume?: string
+  /** A still captured from a video, so it has a poster before Drive makes one. */
+  poster?: string | null
 }
 
 /** How many times a single chunk is re-sent before the upload gives up. */
@@ -75,7 +77,9 @@ export async function uploadFile(file: File, options: UploadOptions = {}): Promi
 
   // The server re-reads the assembled file here: this is where a wrong file
   // type or a corrupt transfer is caught, before anything reaches Drive.
-  await api.send('POST', `/api/uploads/${session.id}/complete`)
+  await api.send('POST', `/api/uploads/${session.id}/complete`, {
+    poster: options.poster ?? null,
+  })
 
   options.onProgress?.({ fraction: 1, bytesSent: file.size, bytesTotal: file.size })
 

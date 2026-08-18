@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import { discardUpload, uploadFile } from '../api/upload'
+import { capturePosterFrame } from '../lib/poster'
 import type { Archive } from '../api/types'
 
 export interface PendingFile {
@@ -12,6 +13,8 @@ export interface PendingFile {
   progress: number
   /** Set once the server holds the whole file; a retry then skips it. */
   sessionId?: string
+  /** A still taken from a video in the browser, sent with the upload. */
+  poster?: string
   error?: string
 }
 
@@ -109,8 +112,23 @@ export function useUploadQueue(archive: Archive | undefined) {
 
       setRejections(refused)
       if (fresh.length > 0) commit([...current, ...fresh])
+
+      /*
+       | Grab a still from each video while the browser already has it open.
+       | Drive generates its own thumbnail, but only after it has finished
+       | processing the upload — until then a video is a play button on an
+       | empty rectangle, which is a poor way to meet something you wanted to
+       | remember. Done in the background: it must never delay the upload.
+       */
+      for (const item of fresh) {
+        if (item.kind !== 'video') continue
+
+        void capturePosterFrame(item.file).then((poster) => {
+          if (poster) patch(item.id, { poster })
+        })
+      }
     },
-    [archive, commit],
+    [archive, commit, patch],
   )
 
   const remove = useCallback(
@@ -176,6 +194,7 @@ export function useUploadQueue(archive: Archive | undefined) {
            */
           onSession: (id) => patch(item.id, { sessionId: id }),
           resume: item.sessionId,
+          poster: item.poster,
         })
 
         patch(item.id, { status: 'uploaded', progress: 1, sessionId })
