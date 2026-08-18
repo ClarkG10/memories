@@ -280,8 +280,23 @@ class GoogleDriveService
      *
      * @throws GoogleDriveException
      */
-    public function folderForMedia(string $type, CarbonInterface $date): string
+    public function folderForMedia(string $type, CarbonInterface $date, ?string $album = null): string
     {
+        /*
+         | An album overrides the date layout entirely: everything belonging to
+         | it sits together, photographs and videos side by side, which is the
+         | whole point of naming one. Filenames still begin with the date, so
+         | the folder is in chronological order without any subfolders.
+         |
+         | It hangs off an "Albums" parent so that an album called "Images"
+         | cannot collide with the type folder of the same name.
+         */
+        if ($album !== null && $album !== '') {
+            $albums = $this->findOrCreateFolder('Albums', $this->rootFolderId());
+
+            return $this->findOrCreateFolder($album, $albums);
+        }
+
         $segment = config("googledrive.folders.{$type}");
 
         if (! is_string($segment) || $segment === '') {

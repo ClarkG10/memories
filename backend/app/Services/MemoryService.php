@@ -50,7 +50,7 @@ class MemoryService
         $sessions = $this->readySessions($user, $sessionUuids);
         $date = Carbon::parse($attributes['memory_date']);
 
-        $uploaded = $this->uploadAll($sessions, $attributes['title'], $date);
+        $uploaded = $this->uploadAll($sessions, $attributes['title'], $date, $attributes['album'] ?? null);
 
         $memory = $this->recordOrUndo($uploaded, function () use ($user, $attributes, $uploaded): Memory {
             $memory = new Memory($attributes);
@@ -87,7 +87,7 @@ class MemoryService
     public function attachMedia(Memory $memory, User $user, array $sessionUuids): Memory
     {
         $sessions = $this->readySessions($user, $sessionUuids, $memory->media_count, $memory);
-        $uploaded = $this->uploadAll($sessions, $memory->title, $memory->memory_date);
+        $uploaded = $this->uploadAll($sessions, $memory->title, $memory->memory_date, $memory->album);
 
         $this->recordOrUndo($uploaded, function () use ($memory, $uploaded): Memory {
             $next = (int) $memory->media()->max('sort_order') + 1;
@@ -381,15 +381,20 @@ class MemoryService
      *
      * @throws MemoryUploadException
      */
-    private function uploadAll(Collection $sessions, string $title, CarbonInterface $date): array
-    {
+    private function uploadAll(
+        Collection $sessions,
+        string $title,
+        CarbonInterface $date,
+        ?string $album = null,
+    ): array {
         $uploaded = [];
 
         try {
             foreach ($sessions as $index => $session) {
                 // The memory's own date decides the folder — not today, and
-                // not whatever the camera stamped into the file.
-                $folderId = $this->drive->folderForMedia((string) $session->type, $date);
+                // not whatever the camera stamped into the file. An album, if
+                // one was named, overrides that entirely.
+                $folderId = $this->drive->folderForMedia((string) $session->type, $date, $album);
 
                 $file = $this->drive->uploadFile(
                     localPath: $this->uploads->absolutePath($session),

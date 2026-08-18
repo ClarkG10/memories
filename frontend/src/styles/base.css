@@ -261,6 +261,11 @@ button {
   box-shadow: 0 0 0 3px var(--blue-wash);
 }
 
+.field__hint {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+}
+
 .field__error {
   font-size: 0.8125rem;
   color: #a4383a;

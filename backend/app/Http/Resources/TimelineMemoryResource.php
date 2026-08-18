@@ -33,6 +33,7 @@ class TimelineMemoryResource extends JsonResource
             'year' => (int) $this->memory_date->format('Y'),
             'month' => (int) $this->memory_date->format('n'),
             'location' => $this->location,
+            'album' => $this->album,
             'media_count' => $this->media_count,
 
             /*

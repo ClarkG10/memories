@@ -12,12 +12,14 @@ import {
 const ARCHIVE = /\/api\/archive/
 const TIMELINE = /\/api\/timeline\?/
 const YEARS = /\/api\/timeline\/years/
+const ALBUMS = /\/api\/albums/
 
 function asOwner() {
   return [
     { match: ARCHIVE, body: { data: anArchive({ can_manage: true }) } },
     { match: YEARS, body: { data: [{ year: 2026, count: 1 }] } },
     { match: TIMELINE, body: timelinePage([aTimelineMemory()]) },
+    { match: ALBUMS, body: { data: ['Our Wedding', 'Japan 2026'] } },
   ]
 }
 
@@ -254,5 +256,60 @@ describe('adding a memory', () => {
     expect(
       await screen.findByText(/isn't connected to Google Drive yet/),
     ).toBeInTheDocument()
+  })
+
+  it('offers albums already in use, and lets a new one be typed', async () => {
+    mockApi(asOwner())
+
+    renderArchive()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a memory' }))
+
+    const field = screen.getByLabelText('Album (optional)')
+
+    // Existing albums are offered rather than having to be retyped exactly —
+    // a typo would otherwise scatter one album across two Drive folders.
+    const options = await screen.findAllByRole('option', { hidden: true })
+    expect(options.map((o) => o.getAttribute('value'))).toEqual(['Our Wedding', 'Japan 2026'])
+
+    // But it is a free-text field, so a brand new album needs nothing created.
+    await userEvent.type(field, 'Japan 2027')
+    expect(field).toHaveValue('Japan 2027')
+  })
+
+  it('says where the files will be filed, and where they go without an album', async () => {
+    mockApi(asOwner())
+
+    renderArchive()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a memory' }))
+
+    expect(screen.getByText('Left empty, files are filed by date.')).toBeInTheDocument()
+
+    await userEvent.type(screen.getByLabelText('Album (optional)'), 'Our Wedding')
+
+    expect(
+      screen.getByText('Files go to Memory Archive / Albums / Our Wedding'),
+    ).toBeInTheDocument()
+  })
+
+  it('sends the album with the memory', async () => {
+    const { calls } = mockApi([
+      ...asOwner(),
+      { method: 'POST', match: /\/api\/uploads$/, body: { data: { id: 's1', status: 'pending', type: null, chunk_size: 4194304, total_chunks: 1, received_chunks: 0, missing_chunks: [0], expires_at: '2026-12-01T00:00:00Z' } } },
+    ])
+
+    renderArchive()
+    await userEvent.click(await screen.findByRole('button', { name: 'Add a memory' }))
+
+    await userEvent.upload(
+      screen.getByLabelText('Photos and videos'),
+      new File(['x'], 'a.jpg', { type: 'image/jpeg' }),
+    )
+    await userEvent.type(screen.getByLabelText('Title'), 'The Day')
+    await userEvent.type(screen.getByLabelText('Album (optional)'), 'Our Wedding')
+    await userEvent.click(screen.getByRole('button', { name: 'Save memory' }))
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/uploads'))).toBe(true)
+    })
   })
 })

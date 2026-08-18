@@ -169,7 +169,11 @@ export function MemoryViewer({ memoryId, initialIndex, onClose }: Props) {
               <p className="viewer__description">{query.data.description}</p>
             )}
 
-            {query.data.location && <p className="viewer__where">{query.data.location}</p>}
+            {(query.data.location || query.data.album) && (
+              <p className="viewer__where">
+                {[query.data.album, query.data.location].filter(Boolean).join(' · ')}
+              </p>
+            )}
 
             {count > 1 && (
               <div className="viewer__dots" role="group" aria-label="Media in this memory">

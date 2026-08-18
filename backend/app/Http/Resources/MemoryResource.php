@@ -27,6 +27,7 @@ class MemoryResource extends JsonResource
             'memory_date' => $this->memory_date->toDateString(),
             'year' => (int) $this->memory_date->format('Y'),
             'location' => $this->location,
+            'album' => $this->album,
             'media_count' => $this->media_count,
 
             // A plain array, not a resource collection: this payload is cached,

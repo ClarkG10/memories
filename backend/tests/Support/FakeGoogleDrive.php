@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use App\Services\GoogleDrive\DriveFile;
-use Carbon\CarbonInterface;
 use App\Services\GoogleDrive\GoogleDriveException;
 use App\Services\GoogleDrive\GoogleDriveService;
+use Carbon\CarbonInterface;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Str;
 use Psr\Http\Message\ResponseInterface;
@@ -156,10 +156,14 @@ class FakeGoogleDrive extends GoogleDriveService
             : null;
     }
 
-    public function folderForMedia(string $type, CarbonInterface $date): string
+    public function folderForMedia(string $type, CarbonInterface $date, ?string $album = null): string
     {
         // Mirrors the real layout closely enough that tests can assert on the
         // path a file was filed under.
+        if ($album !== null && $album !== '') {
+            return 'folder-album-'.Str::slug($album);
+        }
+
         return "folder-{$type}-{$date->format('Y')}-{$date->format('m')}";
     }
 

@@ -15,6 +15,7 @@ export const keys = {
   archive: ['archive'] as const,
   timeline: (year: number | null) => ['timeline', year] as const,
   years: ['years'] as const,
+  albums: ['albums'] as const,
   memory: (id: string) => ['memory', id] as const,
 }
 
@@ -58,6 +59,16 @@ export function useYears() {
   })
 }
 
+/** Albums already in use, so one can be reused rather than retyped exactly. */
+export function useAlbums() {
+  return useQuery({
+    queryKey: keys.albums,
+    queryFn: ({ signal }) => api.get<{ data: string[] }>('/api/albums', signal),
+    select: (response) => response.data,
+    staleTime: 60 * 1000,
+  })
+}
+
 export function useMemory(id: string | null) {
   return useQuery({
     queryKey: keys.memory(id ?? ''),
@@ -79,6 +90,7 @@ function useArchiveInvalidation() {
   return () => {
     void client.invalidateQueries({ queryKey: ['timeline'] })
     void client.invalidateQueries({ queryKey: keys.years })
+    void client.invalidateQueries({ queryKey: keys.albums })
     void client.invalidateQueries({ queryKey: ['memory'] })
   }
 }

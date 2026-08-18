@@ -28,9 +28,10 @@ use Illuminate\Support\Carbon;
  * @property string|null $description
  * @property Carbon $memory_date
  * @property string|null $location
+ * @property string|null $album
  * @property int $media_count
  */
-#[Fillable(['title', 'description', 'memory_date', 'location'])]
+#[Fillable(['title', 'description', 'memory_date', 'location', 'album'])]
 #[RouteKey('uuid')]
 #[UsePolicy(MemoryPolicy::class)]
 class Memory extends Model
@@ -86,5 +87,25 @@ class Memory extends Model
     public function scopeForYear(Builder $query, int $year): void
     {
         $query->whereYear('memory_date', $year);
+    }
+
+    /**
+     * Every album that has been used, most recent first.
+     *
+     * There is no albums table: an album is just a name written on a memory,
+     * so the list of them is whatever names are in use. Nothing to create,
+     * nothing to tidy up when the last memory using one is removed.
+     *
+     * @return array<int, string>
+     */
+    public static function albums(): array
+    {
+        return self::query()
+            ->whereNotNull('album')
+            ->selectRaw('album, MAX(memory_date) as latest')
+            ->groupBy('album')
+            ->orderByDesc('latest')
+            ->pluck('album')
+            ->all();
     }
 }

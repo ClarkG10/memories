@@ -78,6 +78,17 @@ class TimelineQuery
     }
 
     /**
+     * Every album name in use, most recently used first, so the compose sheet
+     * can offer them rather than making someone retype one exactly.
+     *
+     * @return array<int, string>
+     */
+    public function albums(): array
+    {
+        return $this->cache->albums(fn (): array => Memory::albums());
+    }
+
+    /**
      * One memory in full, with all of its media.
      *
      * @return array<string, mixed>|null

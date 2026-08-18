@@ -28,6 +28,8 @@ export interface TimelineMemory {
   year: number
   month: number
   location: string | null
+  /** Optional name that also decides where the files sit in Drive. */
+  album: string | null
   media_count: number
   preview: Media[]
 }
@@ -40,6 +42,7 @@ export interface Memory {
   memory_date: string
   year: number
   location: string | null
+  album: string | null
   media_count: number
   media: Media[]
   created_at: string | null
@@ -89,4 +92,5 @@ export interface MemoryInput {
   description?: string | null
   memory_date: string
   location?: string | null
+  album?: string | null
 }

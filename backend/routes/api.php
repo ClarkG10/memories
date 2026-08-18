@@ -38,6 +38,7 @@ Route::post('auth/login', [AuthController::class, 'login'])
 Route::middleware(['archive.viewable', 'throttle:api'])->group(function (): void {
     Route::get('timeline', [TimelineController::class, 'index'])->name('timeline.index');
     Route::get('timeline/years', [TimelineController::class, 'years'])->name('timeline.years');
+    Route::get('albums', [TimelineController::class, 'albums'])->name('albums.index');
 
     // Kept as an alias of the timeline for a single year.
     Route::get('memories/year/{year}', [TimelineController::class, 'index'])

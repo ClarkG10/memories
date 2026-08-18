@@ -25,6 +25,7 @@ class StoreMemoryRequest extends FormRequest
             'description' => ['nullable', 'string', 'max:5000'],
             'memory_date' => ['required', 'date', 'after_or_equal:1900-01-01', 'before_or_equal:tomorrow'],
             'location' => ['nullable', 'string', 'max:160'],
+            'album' => ['nullable', 'string', 'max:80'],
 
             'uploads' => [
                 'required',
@@ -67,6 +68,19 @@ class StoreMemoryRequest extends FormRequest
         if (is_string($this->input('title'))) {
             $this->merge(['title' => trim($this->input('title'))]);
         }
+
+        /*
+         | The album name becomes a Drive folder name, so anything that would
+         | change the meaning of a path — slashes, control characters, leading
+         | dots — is stripped rather than rejected. Someone naming an album
+         | should not have to think about filesystems.
+         */
+        if (is_string($this->input('album'))) {
+            $album = preg_replace('/[^\\p{L}\\p{N} &._-]+/u', '', $this->input('album')) ?? '';
+            $album = trim($album, " \t.-");
+
+            $this->merge(['album' => $album === '' ? null : $album]);
+        }
     }
 
     /**
@@ -83,7 +97,7 @@ class StoreMemoryRequest extends FormRequest
      */
     public function memoryAttributes(): array
     {
-        return $this->safe()->only(['title', 'description', 'memory_date', 'location']);
+        return $this->safe()->only(['title', 'description', 'memory_date', 'location', 'album']);
     }
 
     /**

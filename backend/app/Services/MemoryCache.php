@@ -62,6 +62,24 @@ class MemoryCache
     }
 
     /**
+     * The albums in use. Same shape of thing as the year list: a small facet
+     * read constantly and written rarely.
+     *
+     * @template T
+     *
+     * @param  Closure(): T  $callback
+     * @return T
+     */
+    public function albums(Closure $callback): mixed
+    {
+        return $this->cache->remember(
+            $this->key('albums'),
+            (int) config('memories.cache.ttl.years'),
+            $callback,
+        );
+    }
+
+    /**
      * One memory in full, as returned when it is opened.
      *
      * @template T

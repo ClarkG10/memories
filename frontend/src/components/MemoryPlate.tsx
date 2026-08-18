@@ -110,7 +110,11 @@ export function MemoryPlate({
 
             <h3 className="plate__title">{memory.title}</h3>
 
-            {memory.location && <p className="plate__where">{memory.location}</p>}
+            {(memory.location || memory.album) && (
+              <p className="plate__where">
+                {[memory.album, memory.location].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </div>
 
           {canManage && (

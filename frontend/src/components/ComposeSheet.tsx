@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { ApiError } from '../api/client'
-import { idempotencyKey, useCreateMemory } from '../api/queries'
+import { idempotencyKey, useAlbums, useCreateMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
 import { useUploadQueue } from '../hooks/useUploadQueue'
 import { todayAsInputValue } from '../lib/dates'
@@ -23,6 +23,7 @@ interface Props {
 export function ComposeSheet({ archive, onClose, onSaved }: Props) {
   const queue = useUploadQueue(archive)
   const create = useCreateMemory()
+  const albums = useAlbums()
   const containerRef = useOverlay(true, () => {
     if (!busy) onClose()
   })
@@ -34,6 +35,7 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
   const [date, setDate] = useState(todayAsInputValue())
   const [location, setLocation] = useState('')
   const [description, setDescription] = useState('')
+  const [album, setAlbum] = useState('')
 
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
@@ -60,12 +62,14 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
         description: description.trim() || null,
         memory_date: date,
         location: location.trim() || null,
+        album: album.trim() || null,
         uploads,
         requestKey: requestKey.current,
       })
 
       requestKey.current = idempotencyKey()
       queue.reset()
+      setAlbum('')
       onSaved(memory.title)
     } catch (caught) {
       const cancelled = caught instanceof ApiError && caught.message === 'Upload cancelled.'
@@ -261,6 +265,42 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
                   disabled={busy}
                 />
               </label>
+            </div>
+
+            <div className="field">
+              {/* Explicit htmlFor rather than a wrapping label: the hint below
+                  is a description, not part of the field's name, and nesting it
+                  inside the label would make screen readers announce the two
+                  run together. */}
+              <label className="field__label" htmlFor="memory-album">
+                Album (optional)
+              </label>
+
+              {/* A datalist rather than a select: albums already in use are
+                  offered, but a new one is simply typed. Nothing to create. */}
+              <input
+                id="memory-album"
+                className="field__input"
+                value={album}
+                onChange={(event) => setAlbum(event.target.value)}
+                maxLength={80}
+                list="album-names"
+                placeholder="Our Wedding"
+                aria-describedby="memory-album-hint"
+                disabled={busy}
+              />
+
+              <datalist id="album-names">
+                {(albums.data ?? []).map((name) => (
+                  <option key={name} value={name} />
+                ))}
+              </datalist>
+
+              <span className="field__hint" id="memory-album-hint">
+                {album.trim()
+                  ? `Files go to Memory Archive / Albums / ${album.trim()}`
+                  : 'Left empty, files are filed by date.'}
+              </span>
             </div>
 
             <label className="field">

@@ -34,6 +34,14 @@ class TimelineController extends Controller
     }
 
     /**
+     * The albums in use, so the compose sheet can offer them for reuse.
+     */
+    public function albums(TimelineQuery $timeline): JsonResponse
+    {
+        return response()->json(['data' => $timeline->albums()]);
+    }
+
+    /**
      * The years the archive spans, with counts.
      */
     public function years(TimelineQuery $timeline): JsonResponse

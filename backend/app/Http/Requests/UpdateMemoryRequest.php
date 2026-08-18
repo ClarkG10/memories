@@ -23,6 +23,7 @@ class UpdateMemoryRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
             'memory_date' => ['sometimes', 'required', 'date', 'after_or_equal:1900-01-01', 'before_or_equal:tomorrow'],
             'location' => ['sometimes', 'nullable', 'string', 'max:160'],
+            'album' => ['sometimes', 'nullable', 'string', 'max:80'],
         ];
     }
 
