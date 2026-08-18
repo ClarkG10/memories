@@ -201,6 +201,17 @@ button {
   background: var(--blue-deeper);
 }
 
+/* Reserved for the irreversible. Red, but the muted red of this palette —
+   alarming enough to notice, never enough to shout. */
+.button--danger {
+  background: #a4383a;
+  color: #fff;
+}
+
+.button--danger:hover:not(:disabled) {
+  background: #8f3033;
+}
+
 .button--plain {
   min-height: 40px;
   padding: 0 var(--space-3);

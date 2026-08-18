@@ -331,9 +331,14 @@
 /* The owner's controls. Present, but never competing with a photograph:
    they fade in on hover, and stay reachable on touch where hover has no
    meaning. */
+/*
+ | Always present, just quiet. Hiding these until hover made editing a thing
+ | you had to know was there, and left the archive feeling read-only to its
+ | own owner.
+ */
 .plate__actions {
   flex: 0 0 auto;
-  opacity: 0;
+  opacity: 0.45;
   transition: opacity var(--duration-quick) var(--ease);
 }
 

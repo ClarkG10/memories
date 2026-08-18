@@ -45,6 +45,28 @@
   font-variant-numeric: tabular-nums;
 }
 
+.viewer__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.viewer__edit {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  color: var(--viewer-ink-soft);
+  font-size: 0.875rem;
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.viewer__edit:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--viewer-ink);
+}
+
 .viewer__close {
   display: grid;
   place-items: center;

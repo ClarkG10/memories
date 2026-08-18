@@ -81,6 +81,8 @@
   --z-bar: 40;
   --z-sheet: 60;
   --z-viewer: 80;
+  /* Above the viewer: a memory is edited while you are looking at it. */
+  --z-dialog: 90;
   --z-toast: 100;
 }
 

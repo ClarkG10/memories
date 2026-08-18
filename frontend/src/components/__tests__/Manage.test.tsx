@@ -2,6 +2,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 import {
+  aMemory,
   aTimelineMemory,
   anArchive,
   mockApi,
@@ -64,12 +65,66 @@ describe('removing a memory', () => {
     const dialog = await screen.findByRole('alertdialog')
 
     expect(screen.getByText('Remove this memory?')).toBeInTheDocument()
-    expect(
-      screen.getByText(
-        'Your memory and its photos and videos will be removed from the timeline and from your Google Drive.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/This cannot be undone/)).toBeInTheDocument()
+    expect(screen.getByText(/permanently deleted from your Google Drive/)).toBeInTheDocument()
+
+    // The title is shown so it can be copied, which is how anyone sane gets
+    // past a confirmation like this.
+    expect(screen.getByLabelText('Type the title to confirm')).toBeInTheDocument()
     expect(dialog).toBeInTheDocument()
+  })
+
+  it('will not delete until the title has been typed exactly', async () => {
+    const { calls } = mockApi([
+      ...asOwner(),
+      { method: 'DELETE', match: /\/api\/memories\/memory-1/, body: { data: { removed: true } } },
+    ])
+
+    renderArchive()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
+    )
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove memory' }))
+
+    const confirm = screen.getByRole('button', { name: 'Remove memory' })
+    const field = screen.getByLabelText('Type the title to confirm')
+
+    // Deleting removes photographs from Drive for good, so a mis-tap must not
+    // be able to do it — and a mis-tap cannot type a title.
+    expect(confirm).toBeDisabled()
+
+    await userEvent.type(field, 'That Beautiful')
+    expect(confirm).toBeDisabled()
+
+    await userEvent.type(field, ' Evening')
+    expect(confirm).toBeEnabled()
+
+    await userEvent.clear(field)
+    await userEvent.type(field, 'that beautiful evening')
+    expect(confirm).toBeDisabled()
+
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false)
+  })
+
+  it('says plainly what is about to be lost', async () => {
+    mockApi([
+      { match: ARCHIVE, body: { data: anArchive({ can_manage: true }) } },
+      { match: YEARS, body: { data: [] } },
+      { match: ALBUMS, body: { data: [] } },
+      { match: TIMELINE, body: timelinePage([aTimelineMemory({ media_count: 4 })]) },
+    ])
+
+    renderArchive()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
+    )
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Remove memory' }))
+
+    expect(
+      screen.getByText(/All 4 photos and videos will be permanently deleted from your Google Drive/),
+    ).toBeInTheDocument()
   })
 
   it('does nothing at all if the question is declined', async () => {
@@ -102,6 +157,7 @@ describe('removing a memory', () => {
       await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
     )
     await userEvent.click(screen.getByRole('menuitem', { name: 'Remove memory' }))
+    await userEvent.type(screen.getByLabelText('Type the title to confirm'), 'That Beautiful Evening')
     await userEvent.click(screen.getByRole('button', { name: 'Remove memory' }))
 
     await waitFor(() => {
@@ -130,6 +186,7 @@ describe('removing a memory', () => {
       await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
     )
     await userEvent.click(screen.getByRole('menuitem', { name: 'Remove memory' }))
+    await userEvent.type(screen.getByLabelText('Type the title to confirm'), 'That Beautiful Evening')
     await userEvent.click(screen.getByRole('button', { name: 'Remove memory' }))
 
     expect(
@@ -310,6 +367,78 @@ describe('adding a memory', () => {
 
     await waitFor(() => {
       expect(calls.some((c) => c.method === 'POST' && c.url.endsWith('/api/uploads'))).toBe(true)
+    })
+  })
+})
+
+describe('editing', () => {
+  it('is reachable straight from the open memory, not only from the card', async () => {
+    mockApi([
+      ...asOwner(),
+      { match: /\/api\/memories\/memory-1/, body: { data: aMemory() } },
+    ])
+
+    renderArchive()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'Open That Beautiful Evening' }),
+    )
+
+    /*
+     | Where a typo is actually noticed: while looking at the memory. Closing
+     | the viewer to go and hunt for the card again is a poor answer to it.
+     */
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Edit details' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Title')).toHaveValue('That Beautiful Evening')
+  })
+
+  it('saves on Enter, from any field', async () => {
+    const { calls } = mockApi([
+      ...asOwner(),
+      { match: /\/api\/memories\/memory-1/, body: { data: aMemory() } },
+      { method: 'PATCH', match: /\/api\/memories\/memory-1/, body: { data: aMemory({ title: 'Renamed' }) } },
+    ])
+
+    renderArchive()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
+    )
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+
+    const title = await screen.findByLabelText('Title')
+    await userEvent.clear(title)
+    await userEvent.type(title, 'Renamed{Enter}')
+
+    await waitFor(() => {
+      expect(calls.some((c) => c.method === 'PATCH')).toBe(true)
+    })
+  })
+
+  it('offers every field a memory has', async () => {
+    mockApi([
+      ...asOwner(),
+      { match: /\/api\/memories\/memory-1/, body: { data: aMemory() } },
+    ])
+
+    renderArchive()
+
+    await userEvent.click(
+      await screen.findByRole('button', { name: 'More for That Beautiful Evening' }),
+    )
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Edit details' }))
+
+    for (const label of ['Title', 'When', 'Where (optional)', 'Album (optional)', 'A few words (optional)']) {
+      expect(screen.getByLabelText(label)).toBeInTheDocument()
+    }
+
+    // The description is not in the timeline payload, so it is fetched.
+    await waitFor(() => {
+      expect(screen.getByLabelText('A few words (optional)')).toHaveValue(
+        'One of those evenings we wish we could replay.',
+      )
     })
   })
 })

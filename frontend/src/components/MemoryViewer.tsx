@@ -3,12 +3,14 @@ import { useMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
-import type { Media } from '../api/types'
+import type { Media, Memory } from '../api/types'
 
 interface Props {
   memoryId: string
   initialIndex: number
   onClose: () => void
+  canManage: boolean
+  onEdit: (memory: Memory) => void
 }
 
 /** Ignore an accidental drag; a swipe is a deliberate movement. */
@@ -22,7 +24,7 @@ const SWIPE_THRESHOLD = 56
  * swipes move between the media; Escape and the browser's back button both
  * close it.
  */
-export function MemoryViewer({ memoryId, initialIndex, onClose }: Props) {
+export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdit }: Props) {
   const query = useMemory(memoryId)
   const [index, setIndex] = useState(initialIndex)
   const containerRef = useOverlay(true, onClose)
@@ -98,22 +100,39 @@ export function MemoryViewer({ memoryId, initialIndex, onClose }: Props) {
           {count > 1 ? `${index + 1} / ${count}` : ''}
         </span>
 
-        <button
-          type="button"
-          className="viewer__close"
-          onClick={onClose}
-          aria-label="Close"
-          data-autofocus
-        >
+        <div className="viewer__actions">
+          {/*
+            | Editing lives here as well as on the card. This is where a typo
+            | is actually noticed — while looking at the memory — and closing
+            | the viewer to go and find the card again is a poor answer to it.
+          */}
+          {canManage && query.data && (
+            <button
+              type="button"
+              className="viewer__edit"
+              onClick={() => onEdit(query.data)}
+            >
+              Edit
+            </button>
+          )}
+
+          <button
+            type="button"
+            className="viewer__close"
+            onClick={onClose}
+            aria-label="Close"
+            data-autofocus
+          >
           <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
             <path
               d="M6 6l12 12M18 6L6 18"
               stroke="currentColor"
               strokeWidth="1.4"
               strokeLinecap="round"
-            />
-          </svg>
-        </button>
+              />
+            </svg>
+          </button>
+        </div>
       </div>
 
       <div className="viewer__stage" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>

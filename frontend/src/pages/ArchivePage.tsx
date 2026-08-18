@@ -4,7 +4,7 @@ import { ApiError } from '../api/client'
 import { useArchive, useDeleteMemory, useSignOut, useYears } from '../api/queries'
 import { ComposeSheet } from '../components/ComposeSheet'
 import { ConfirmDialog } from '../components/ConfirmDialog'
-import { EditDialog } from '../components/EditDialog'
+import { EditDialog, type EditableMemory } from '../components/EditDialog'
 import { MemoryViewer } from '../components/MemoryViewer'
 import { Notice } from '../components/Notice'
 import { SignInDialog } from '../components/SignInDialog'
@@ -36,7 +36,7 @@ export function ArchivePage() {
 
   const [composing, setComposing] = useState(false)
   const [signingIn, setSigningIn] = useState(false)
-  const [editing, setEditing] = useState<TimelineMemory | null>(null)
+  const [editing, setEditing] = useState<EditableMemory | null>(null)
   const [removing, setRemoving] = useState<TimelineMemory | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
 
@@ -213,6 +213,8 @@ export function ArchivePage() {
           memoryId={openMemoryId}
           initialIndex={Number.isFinite(openIndex) ? openIndex : 0}
           onClose={closeViewer}
+          canManage={canManage}
+          onEdit={setEditing}
         />
       )}
 
@@ -241,7 +243,12 @@ export function ArchivePage() {
       {removing && (
         <ConfirmDialog
           title="Remove this memory?"
-          body="Your memory and its photos and videos will be removed from the timeline and from your Google Drive."
+          body={`This cannot be undone. ${
+            removing.media_count === 1
+              ? 'The photo or video'
+              : `All ${removing.media_count} photos and videos`
+          } will be permanently deleted from your Google Drive, along with everything written about this memory.`}
+          confirmPhrase={removing.title}
           confirmLabel="Remove memory"
           busy={remove.isPending}
           error={removeError}

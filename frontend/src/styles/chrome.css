@@ -139,7 +139,7 @@
 .scrim {
   position: fixed;
   inset: 0;
-  z-index: var(--z-sheet);
+  z-index: var(--z-dialog);
   display: grid;
   place-items: center;
   padding: var(--space-4);
@@ -212,6 +212,20 @@
   .dialog__actions .button {
     width: 100%;
   }
+}
+
+/* The words that have to be typed. Monospaced and selectable, because
+   copying it is the expected way through. */
+.confirm__phrase {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper-sunk);
+  color: var(--ink);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  word-break: break-word;
+  user-select: all;
 }
 
 .dialog__error {

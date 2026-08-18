@@ -3,10 +3,20 @@ import { ApiError } from '../api/client'
 import { useAlbums, useMemory, useUpdateMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
 import { todayAsInputValue } from '../lib/dates'
-import type { TimelineMemory } from '../api/types'
+/**
+ * Loose on purpose: editing is reached both from a timeline card and from the
+ * open viewer, and those carry different shapes of the same memory.
+ */
+export interface EditableMemory {
+  id: string
+  title: string
+  memory_date: string
+  location: string | null
+  album: string | null
+}
 
 interface Props {
-  memory: TimelineMemory
+  memory: EditableMemory
   onClose: () => void
   onSaved: () => void
 }
@@ -25,7 +35,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
    | the field simply has nothing in it.
    */
   const full = useMemory(memory.id)
-  const containerRef = useOverlay(true, () => {
+  const containerRef = useOverlay<HTMLFormElement>(true, () => {
     if (!update.isPending) onClose()
   })
 
@@ -46,7 +56,8 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
     }
   }, [full.data, loadedDescription])
 
-  const save = async () => {
+  const save = async (event?: React.FormEvent) => {
+    event?.preventDefault()
     setError(null)
 
     try {
@@ -69,13 +80,15 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
 
   return (
     <div className="scrim" role="presentation">
-      <div
+      {/* A form, so Enter saves from any field rather than doing nothing. */}
+      <form
         className="dialog"
         role="dialog"
         aria-modal="true"
         aria-labelledby="edit-title"
         ref={containerRef}
         tabIndex={-1}
+        onSubmit={(event) => void save(event)}
       >
         <h2 className="dialog__title" id="edit-title">
           Edit details
@@ -170,15 +183,14 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
           </button>
 
           <button
-            type="button"
+            type="submit"
             className="button button--primary"
-            onClick={() => void save()}
             disabled={update.isPending || title.trim() === ''}
           >
             {update.isPending ? 'Saving…' : 'Save'}
           </button>
         </div>
-      </div>
+      </form>
     </div>
   )
 }
