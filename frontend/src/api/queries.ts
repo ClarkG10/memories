@@ -13,7 +13,7 @@ import type { Archive, Memory, MemoryInput, TimelinePage, YearCount } from './ty
  */
 export const keys = {
   archive: ['archive'] as const,
-  timeline: (year: number | null) => ['timeline', year] as const,
+  timeline: (year: number | null, search = '') => ['timeline', year, search] as const,
   years: ['years'] as const,
   albums: ['albums'] as const,
   memory: (id: string) => ['memory', id] as const,
@@ -34,13 +34,14 @@ export function useArchive() {
  * Cursors rather than page numbers: adding a memory shifts every offset, and
  * someone mid-scroll would see a card twice or miss one entirely.
  */
-export function useTimeline(year: number | null) {
+export function useTimeline(year: number | null, search = '') {
   return useInfiniteQuery({
-    queryKey: keys.timeline(year),
+    queryKey: keys.timeline(year, search),
     initialPageParam: null as string | null,
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams()
       if (year !== null) params.set('year', String(year))
+      if (search !== '') params.set('q', search)
       if (pageParam) params.set('cursor', pageParam)
 
       return api.get<TimelinePage>(`/api/timeline?${params.toString()}`, signal)

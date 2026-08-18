@@ -41,6 +41,7 @@ class ImportCommand extends Command
         {--title= : The title for the recovered memory}
         {--date= : The day it happened (YYYY-MM-DD)}
         {--location= : Where it was}
+        {--description= : The words that go underneath}
         {--album= : An album name, if it belongs to one}
         {--folder= : Import this Drive folder without asking}
         {--dry-run : Show what would be recovered and change nothing}';
@@ -271,6 +272,7 @@ class ImportCommand extends Command
             $memory = $owner->memories()->create([
                 'title' => $title,
                 'memory_date' => Carbon::parse($date)->toDateString(),
+                'description' => $this->option('description'),
                 'location' => $this->option('location'),
                 'album' => $this->option('album'),
             ]);

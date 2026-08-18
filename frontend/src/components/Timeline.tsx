@@ -10,6 +10,8 @@ import type { TimelineMemory } from '../api/types'
 
 interface Props {
   year: number | null
+  /** A phrase being searched for, or an empty string for the whole archive. */
+  search?: string
   canManage: boolean
   onOpen: (memoryId: string, mediaIndex?: number) => void
   onEdit: (memory: TimelineMemory) => void
@@ -21,8 +23,8 @@ interface Props {
  * The archive itself: memories newest first, grouped under the year and month
  * they belong to, loading more as someone reaches the end.
  */
-export function Timeline({ year, canManage, onOpen, onEdit, onRemove, onAdd }: Props) {
-  const query = useTimeline(year)
+export function Timeline({ year, search = '', canManage, onOpen, onEdit, onRemove, onAdd }: Props) {
+  const query = useTimeline(year, search)
   const sentinel = useRef<HTMLDivElement | null>(null)
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
@@ -70,6 +72,20 @@ export function Timeline({ year, canManage, onOpen, onEdit, onRemove, onAdd }: P
   const memories = query.data?.pages.flatMap((page) => page.data) ?? []
 
   if (memories.length === 0) {
+    /*
+     | A search that finds nothing is not an empty archive, and offering "add
+     | your first memory" to someone who has sixteen of them and mistyped one
+     | word is the interface not listening.
+     */
+    if (search !== '') {
+      return (
+        <div className="empty">
+          <p className="empty__line">Nothing matches “{search}”.</p>
+          <p className="empty__hint">Try fewer words, or a place, or a year.</p>
+        </div>
+      )
+    }
+
     return <EmptyState filtered={year !== null} canManage={canManage} onAdd={onAdd} />
   }
 
@@ -79,6 +95,13 @@ export function Timeline({ year, canManage, onOpen, onEdit, onRemove, onAdd }: P
 
   return (
     <div className="timeline">
+      {search !== '' && (
+        <p className="timeline__found" aria-live="polite">
+          {memories.length}
+          {query.hasNextPage ? '+' : ''} matching “{search}”
+        </p>
+      )}
+
       {groupByYearAndMonth(memories).map((yearGroup) => (
         <section key={yearGroup.year} className="year" aria-label={`${yearGroup.year}`}>
           <header className="year__heading">

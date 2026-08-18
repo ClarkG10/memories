@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render } from '@testing-library/react'
-import { MemoryRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { render, screen } from '@testing-library/react'
+import { MemoryRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { vi } from 'vitest'
 import { ToastProvider } from '../components/Toasts'
 import { ArchivePage } from '../pages/ArchivePage'
@@ -64,6 +64,37 @@ export function mockApi(handlers: Handler[]) {
 }
 
 /**
+ * The current address, written somewhere a test can read it.
+ *
+ * MemoryRouter never touches window.location, so a test asserting that a
+ * phrase reached the address bar has nothing to look at without this.
+ */
+/* oxlint-disable-next-line react/only-export-components -- a test harness is
+   not a module anything fast-refreshes. */
+function LocationProbe() {
+  const location = useLocation()
+
+  return (
+    <span
+      data-testid="location"
+      data-path={location.pathname}
+      data-search={location.search}
+      hidden
+    />
+  )
+}
+
+/** What the address bar would say, if there were one. */
+export function currentLocation(): { path: string; search: string } {
+  const probe = screen.getByTestId('location')
+
+  return {
+    path: probe.getAttribute('data-path') ?? '',
+    search: probe.getAttribute('data-search') ?? '',
+  }
+}
+
+/**
  * @param initialPath where to start
  * @param options.fromLink true to simulate arriving from a shared link, with
  *   no timeline behind it in the history
@@ -86,6 +117,13 @@ export function renderArchive(initialPath = '/', options: { fromLink?: boolean }
             initialPath === '/' || options.fromLink ? [initialPath] : ['/', initialPath]
           }
         >
+          {/*
+            | MemoryRouter never touches window.location, so a test asserting
+            | that something reached the address bar has nothing to read. This
+            | writes it somewhere observable instead.
+          */}
+          <LocationProbe />
+
           <Routes>
             <Route path="/" element={<ArchivePage />} />
             <Route path="/m/:memoryId" element={<ArchivePage />} />

@@ -30,7 +30,15 @@ class TimelineController extends Controller
 
         $cursor = $request->string('cursor')->value() ?: null;
 
-        return response()->json($timeline->page($request, $year, $cursor, $perPage));
+        /*
+         | Bounded, because it becomes part of a cache key and of a LIKE — an
+         | unbounded phrase is a way to fill Redis with junk and make the
+         | database read every row for a pattern nobody typed on purpose.
+         */
+        $search = trim($request->string('q')->value());
+        $search = $search === '' ? null : mb_substr($search, 0, 120);
+
+        return response()->json($timeline->page($request, $year, $cursor, $perPage, $search));
     }
 
     /**

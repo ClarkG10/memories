@@ -25,13 +25,25 @@ class TimelineQuery
      *
      * @return array{data: array<int, mixed>, meta: array{next_cursor: string|null, has_more: bool}}
      */
-    public function page(Request $request, ?int $year, ?string $cursor, int $perPage): array
-    {
-        $signature = sha1(json_encode([$year, $cursor, $perPage]) ?: '');
+    public function page(
+        Request $request,
+        ?int $year,
+        ?string $cursor,
+        int $perPage,
+        ?string $search = null,
+    ): array {
+        /*
+         | The phrase is part of the key. Left out, the first search would be
+         | answered from the cached unsearched page and every search after it
+         | would return the same thing — the worst kind of caching bug, because
+         | it looks like a working feature returning wrong answers.
+         */
+        $signature = sha1(json_encode([$year, $cursor, $perPage, $search]) ?: '');
 
-        return $this->cache->timeline($signature, function () use ($request, $year, $cursor, $perPage): array {
+        return $this->cache->timeline($signature, function () use ($request, $year, $cursor, $perPage, $search): array {
             $query = Memory::query()
                 ->when($year !== null, fn ($q) => $q->forYear($year))
+                ->when($search !== null && $search !== '', fn ($q) => $q->matching((string) $search))
                 ->newestFirst()
                 /*
                  | Eager load only the first few media per memory. Without the

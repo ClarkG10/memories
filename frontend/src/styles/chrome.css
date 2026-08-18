@@ -371,3 +371,88 @@
   user-select: all;
   letter-spacing: 0.04em;
 }
+
+/* --------------------------------------------------------------------------
+ * Searching
+ *
+ * A rule and a word, not a box. It sits under the epigraph and should read as
+ * part of the page rather than as a piece of software bolted to the top of it,
+ * so it stays quiet until something has been typed into it.
+ * ----------------------------------------------------------------------- */
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: min(30rem, 100%);
+  margin: 0 auto var(--space-6);
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--line);
+  transition: border-color var(--duration-quick) var(--ease);
+}
+
+.search:focus-within {
+  border-bottom-color: var(--blue-deep);
+}
+
+.search__glass {
+  display: grid;
+  place-items: center;
+  color: var(--ink-faint);
+  transition: color var(--duration-quick) var(--ease);
+}
+
+.search:focus-within .search__glass {
+  color: var(--blue-deep);
+}
+
+.search__input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: none;
+  font-family: var(--font-ui);
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.search__input::placeholder {
+  color: var(--ink-faint);
+}
+
+.search__input:focus {
+  outline: none;
+}
+
+/* Safari draws its own; two clear buttons is one too many. */
+.search__input::-webkit-search-cancel-button,
+.search__input::-webkit-search-decoration {
+  appearance: none;
+}
+
+.search__clear {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink-muted);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.search__clear:hover {
+  background: var(--paper-sunk);
+  color: var(--ink);
+}
+
+/* How many were found, said once, above the results. */
+.timeline__found {
+  margin-bottom: var(--space-6);
+  font-size: 0.8125rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}

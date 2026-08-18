@@ -12,6 +12,7 @@ import { Timeline } from '../components/Timeline'
 import { TimelineSkeleton } from '../components/TimelineSkeleton'
 import { useToasts } from '../hooks/useToasts'
 import { YearNav } from '../components/YearNav'
+import { SearchField } from '../components/SearchField'
 import type { TimelineMemory } from '../api/types'
 
 /**
@@ -42,6 +43,7 @@ export function ArchivePage() {
 
   const yearParam = search.get('year')
   const selectedYear = yearParam === null ? null : Number(yearParam)
+  const phrase = search.get('q') ?? ''
   const openMemoryId = params.memoryId ?? null
   const openIndex = Number(search.get('i') ?? 0)
 
@@ -55,6 +57,20 @@ export function ArchivePage() {
 
     setSearch(next, { replace: true })
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const searchFor = (value: string) => {
+    const next = new URLSearchParams(search)
+
+    if (value.trim() === '') next.delete('q')
+    else next.set('q', value)
+
+    /*
+     | Replacing rather than pushing: settling on a phrase a quarter of a
+     | second after each keystroke would otherwise leave one history entry per
+     | word typed, and the back button would spell the search out backwards.
+     */
+    setSearch(next, { replace: true })
   }
 
   /*
@@ -174,6 +190,8 @@ export function ArchivePage() {
             offers navigation. On a narrow screen this is a strip that sticks
             to the top once scrolled past; on a wide one it is a fixed rail,
             and its position here makes no difference. */}
+        {!locked && <SearchField value={phrase} onSearch={searchFor} />}
+
         {!locked && (
           <YearNav years={years.data ?? []} selected={selectedYear} onSelect={selectYear} />
         )}
@@ -196,6 +214,7 @@ export function ArchivePage() {
         ) : (
           <Timeline
             year={selectedYear}
+            search={phrase}
             canManage={canManage}
             onOpen={openMemory}
             onEdit={setEditing}

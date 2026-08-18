@@ -198,6 +198,35 @@ class ImportTest extends TestCase
         $this->assertSame(2, MemoryMedia::query()->count());
     }
 
+    public function test_words_can_be_given_back_although_none_are_recoverable(): void
+    {
+        $this->owner();
+        $this->orphan('drive-1', '2025-11-23 A day 01.jpg');
+
+        /*
+         | Nothing in Drive carries a description — the file names hold the
+         | date and the title and nothing else — so whatever was written when
+         | the save failed is gone. It can still be typed back in here rather
+         | than only through the interface afterwards.
+         */
+        $this->artisan('memories:import --no-interaction --description="we ate mangoes on the pier"')
+            ->assertSuccessful();
+
+        $this->assertSame('we ate mangoes on the pier', Memory::firstOrFail()->description);
+    }
+
+    public function test_a_recovered_memory_has_no_words_unless_they_are_given(): void
+    {
+        $this->owner();
+        $this->orphan('drive-1', '2025-11-23 A day 01.jpg');
+
+        $this->artisan('memories:import --no-interaction')->assertSuccessful();
+
+        // Stated plainly rather than left to be discovered: there was never
+        // anywhere for a description to survive.
+        $this->assertNull(Memory::firstOrFail()->description);
+    }
+
     public function test_it_says_so_when_there_is_nothing_to_recover(): void
     {
         $this->owner();
