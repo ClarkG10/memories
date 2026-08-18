@@ -6,9 +6,12 @@ namespace App\Console\Commands;
 
 use App\Models\Memory;
 use App\Models\MemoryMedia;
+use App\Services\DriveReconciler;
+use App\Services\GoogleDrive\DriveFile;
 use App\Services\GoogleDrive\GoogleDriveException;
 use App\Services\GoogleDrive\GoogleDriveService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Collection;
 
 /**
  * What is in Drive, against what the archive knows about.
@@ -28,7 +31,7 @@ class ReconcileCommand extends Command
 
     protected $description = 'Compare the files in Google Drive against the memories that claim them';
 
-    public function handle(GoogleDriveService $drive): int
+    public function handle(GoogleDriveService $drive, DriveReconciler $reconciler): int
     {
         if (! $drive->isConfigured()) {
             $this->components->error('Drive is not connected. Run `php artisan drive:authorize`.');
@@ -38,123 +41,107 @@ class ReconcileCommand extends Command
 
         $this->components->info('Reading Drive…');
 
+        $year = $this->option('year') !== null ? (int) $this->option('year') : null;
+
         try {
-            $files = $drive->listOwnFiles();
+            $orphans = $reconciler->orphans($year);
+            $missing = $reconciler->missing();
         } catch (GoogleDriveException $e) {
             $this->components->error('Could not read Drive: '.$e->getMessage());
 
             return self::FAILURE;
         }
 
-        /*
-         | withTrashed on both sides. A soft-deleted memory still legitimately
-         | owns its files until the queue collects them, and counting those as
-         | orphans would report a problem during entirely ordinary use.
-         */
-        $known = MemoryMedia::withTrashed()->pluck('deletion_state', 'drive_file_id');
+        $problems = 0;
 
-        $year = $this->option('year');
-        $orphans = [];
-        $orphanBytes = 0;
-
-        foreach ($files as $file) {
-            if ($known->has($file['id'])) {
-                continue;
-            }
-
-            // The name carries the date it was filed under: "2025-11-23 Title 01.jpg".
-            if ($year !== null && ! str_starts_with($file['name'], (string) $year)) {
-                continue;
-            }
-
-            $orphans[] = $file;
-            $orphanBytes += $file['size'];
-        }
-
-        $this->line('  Files in Drive: '.count($files));
-        $this->line('  Claimed by a memory: '.(count($files) - count($orphans)));
-        $this->newLine();
-
-        if ($orphans !== []) {
-            $this->components->warn(sprintf(
-                '%d file(s) in Drive belong to no memory (%s).',
-                count($orphans),
-                $this->bytes($orphanBytes),
-            ));
-
-            $this->line('  Either a save failed after the upload, or a memory was deleted and');
-            $this->line('  its removal never ran. They are taking up space and are invisible');
-            $this->line('  in the archive. Nothing here deletes them — that is your call.');
-            $this->newLine();
-
-            $byFolder = [];
-
-            foreach ($orphans as $file) {
-                $byFolder[$file['parent'] ?? 'unknown'][] = $file['name'];
-            }
-
-            foreach ($byFolder as $parent => $names) {
-                $label = $parent === 'unknown' ? 'unknown folder' : ($drive->folderName($parent) ?? $parent);
-
-                $this->line(sprintf('  %s — %d file(s)', $label, count($names)));
-
-                foreach (array_slice($names, 0, 4) as $name) {
-                    $this->line('      '.$name);
-                }
-
-                if (count($names) > 4) {
-                    $this->line(sprintf('      … and %d more', count($names) - 4));
-                }
-            }
-
-            $this->newLine();
-            $this->line('  If a memory was deleted on purpose, remove them in Drive.');
-            $this->line('  If it was not, the memory is gone and only these files remain.');
+        if ($orphans->isNotEmpty()) {
+            $problems++;
+            $this->reportOrphans($drive, $reconciler, $orphans);
         } else {
             $this->components->info('Every file in Drive belongs to a memory.');
         }
 
-        /*
-         | And the other direction. A memory pointing at a file that is no
-         | longer there renders as a broken photograph, and nothing in the
-         | interface can say why.
-         */
-        $present = collect($files)->pluck('id')->flip();
-
-        $missing = MemoryMedia::query()
-            ->where('deletion_state', MemoryMedia::DELETION_ACTIVE)
-            ->get(['id', 'uuid', 'memory_id', 'drive_file_id', 'original_name'])
-            ->reject(fn (MemoryMedia $media): bool => $present->has($media->drive_file_id));
-
         $this->newLine();
 
         if ($missing->isNotEmpty()) {
-            $this->components->warn(
-                $missing->count().' photograph(s) point at a Drive file that is not there.'
-            );
-
-            $titles = Memory::withTrashed()
-                ->whereIn('id', $missing->pluck('memory_id')->unique())
-                ->pluck('title', 'id');
-
-            foreach ($missing->take(10) as $media) {
-                $this->line(sprintf(
-                    '    %s — in "%s"',
-                    $media->original_name,
-                    $titles[$media->memory_id] ?? 'a deleted memory',
-                ));
-            }
-
-            $this->newLine();
-            $this->line('  These are the ones that show as a broken photograph.');
-            $this->line('  Remove them from the memory in the app, or restore them in Drive.');
-
-            return self::FAILURE;
+            $problems++;
+            $this->reportMissing($missing);
+        } else {
+            $this->components->info('Every photograph the archive holds is still in Drive.');
         }
 
-        $this->components->info('Every photograph the archive holds is still in Drive.');
+        return $problems === 0 ? self::SUCCESS : self::FAILURE;
+    }
 
-        return $orphans === [] ? self::SUCCESS : self::FAILURE;
+    /**
+     * @param  Collection<int, array{file: DriveFile, parent: string|null}>  $orphans
+     */
+    private function reportOrphans(
+        GoogleDriveService $drive,
+        DriveReconciler $reconciler,
+        Collection $orphans,
+    ): void {
+        $bytes = (int) $orphans->sum(fn (array $entry): int => $entry['file']->size ?? 0);
+
+        $this->components->warn(sprintf(
+            '%d file(s) in Drive belong to no memory (%s).',
+            $orphans->count(),
+            $this->bytes($bytes),
+        ));
+
+        $this->line('  Either a save failed after the upload, or a memory was deleted and');
+        $this->line('  its removal never ran. Nothing here deletes them — which of those');
+        $this->line('  two happened decides what should be done, and that is your call.');
+        $this->newLine();
+
+        foreach ($reconciler->groupByFolder($orphans) as $parent => $group) {
+            $label = $parent === 'unknown' ? 'unknown folder' : ($drive->folderName($parent) ?? $parent);
+            $guess = DriveReconciler::readName($group->first()['file']->name);
+
+            $this->line(sprintf('  %s — %d file(s)', $label, $group->count()));
+
+            if ($guess['title'] !== null) {
+                $this->line(sprintf('    looks like "%s" from %s', $guess['title'], $guess['date']));
+            }
+
+            foreach ($group->take(3) as $entry) {
+                $this->line('      '.$entry['file']->name);
+            }
+
+            if ($group->count() > 3) {
+                $this->line(sprintf('      … and %d more', $group->count() - 3));
+            }
+        }
+
+        $this->newLine();
+        $this->line('  To put a set back into the archive without re-uploading anything:');
+        $this->line('    php artisan memories:import');
+    }
+
+    /**
+     * @param  Collection<int, MemoryMedia>  $missing
+     */
+    private function reportMissing(Collection $missing): void
+    {
+        $this->components->warn(
+            $missing->count().' photograph(s) point at a Drive file that is not there.'
+        );
+
+        $titles = Memory::withTrashed()
+            ->whereIn('id', $missing->pluck('memory_id')->unique())
+            ->pluck('title', 'id');
+
+        foreach ($missing->take(10) as $media) {
+            $this->line(sprintf(
+                '    %s — in "%s"',
+                $media->original_name,
+                $titles[$media->memory_id] ?? 'a deleted memory',
+            ));
+        }
+
+        $this->newLine();
+        $this->line('  These are the ones that show as a broken photograph.');
+        $this->line('  Remove them from the memory in the app, or restore them in Drive.');
     }
 
     private function bytes(int $bytes): string

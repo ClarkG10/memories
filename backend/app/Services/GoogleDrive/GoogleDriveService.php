@@ -495,7 +495,11 @@ class GoogleDriveService
      * It answers the one question the database cannot: is there anything up
      * there that nothing down here knows about?
      *
-     * @return array<int, array{id: string, name: string, parent: string|null, size: int}>
+     * Every fact is asked for in the listing itself — dimensions, duration,
+     * checksum — so recovering a memory from these files costs one call rather
+     * than one per file.
+     *
+     * @return array<int, array{file: DriveFile, parent: string|null}>
      *
      * @throws GoogleDriveException
      */
@@ -508,7 +512,7 @@ class GoogleDriveService
             do {
                 $result = $this->factory->drive()->files->listFiles([
                     'q' => sprintf("mimeType != '%s' and trashed = false", self::FOLDER_MIME),
-                    'fields' => 'nextPageToken, files(id,name,size,parents)',
+                    'fields' => 'nextPageToken, files(parents,'.self::FILE_FIELDS.')',
                     'pageSize' => 1000,
                     'spaces' => 'drive',
                     'pageToken' => $pageToken,
@@ -520,10 +524,8 @@ class GoogleDriveService
                     $parents = $file->getParents();
 
                     $files[] = [
-                        'id' => (string) $file->getId(),
-                        'name' => (string) $file->getName(),
+                        'file' => DriveFile::fromGoogle($file),
                         'parent' => is_array($parents) && $parents !== [] ? (string) $parents[0] : null,
-                        'size' => (int) $file->getSize(),
                     ];
                 }
 

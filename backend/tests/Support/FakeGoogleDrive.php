@@ -199,7 +199,7 @@ class FakeGoogleDrive extends GoogleDriveService
     /**
      * Everything the fake is holding, in the shape the real listing returns.
      *
-     * @return array<int, array{id: string, name: string, parent: string|null, size: int}>
+     * @return array<int, array{file: DriveFile, parent: string|null}>
      */
     public function listOwnFiles(): array
     {
@@ -211,10 +211,17 @@ class FakeGoogleDrive extends GoogleDriveService
 
         foreach ($this->files as $id => $file) {
             $files[] = [
-                'id' => $id,
-                'name' => $file['name'],
+                'file' => new DriveFile(
+                    id: $id,
+                    name: $file['name'],
+                    mimeType: $file['mime'] ?? 'image/jpeg',
+                    size: $file['bytes'],
+                    webViewLink: "https://drive.google.com/file/d/{$id}/view",
+                    thumbnailLink: "https://lh3.googleusercontent.com/{$id}=s220",
+                    width: 1600,
+                    height: 1067,
+                ),
                 'parent' => $file['folder'],
-                'size' => $file['bytes'],
             ];
         }
 
