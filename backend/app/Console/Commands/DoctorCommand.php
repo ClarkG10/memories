@@ -95,12 +95,11 @@ class DoctorCommand extends Command
         }
 
         /*
-         | An archive belongs to one person, and the policy that guards every
-         | edit is `$user->id === $memory->user_id`. A second users row — which
-         | `archive:owner` creates without comment when given a different email
-         | — therefore splits the archive in two: signing in as one of them
-         | shows every memory and lets you edit none of the other's. From the
-         | browser that reads as "not authorized" with nothing to explain it.
+         | An archive belongs to one person. A second users row appears more
+         | easily than it should — `archive:owner` given a different email
+         | makes one without comment — and while nothing breaks any more, an
+         | archive whose memories are filed under two names is a thing waiting
+         | to confuse whoever looks at the database next.
          */
         $owners = User::query()
             ->withCount('memories')
@@ -120,11 +119,9 @@ class DoctorCommand extends Command
         }
 
         if ($owners->count() > 1) {
-            $problems++;
-            $this->components->warn('  This archive has more than one owner, so it is split between them.');
-            $this->line('    Signing in as one shows every memory and lets you edit only your own —');
-            $this->line('    which appears in the browser as "not authorized" and nothing else.');
-            $this->line('    Put them back together: php artisan memories:reassign --to=you@example.com');
+            $this->line('  More than one account exists. Signing in as any of them edits everything,');
+            $this->line('  so nothing is broken — but one archive under one name is tidier:');
+            $this->line('    php artisan memories:reassign --to=you@example.com');
         }
 
         $this->newLine();

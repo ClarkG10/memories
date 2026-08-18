@@ -118,16 +118,23 @@ class AuthenticationTest extends TestCase
         $this->postJson('/api/uploads', [])->assertUnauthorized();
     }
 
-    public function test_someone_elses_memory_cannot_be_edited_or_removed(): void
+    /**
+     * Whoever is signed in may change the whole archive, deliberately.
+     *
+     * There is no sign-up, so the only accounts that exist are ones the owner
+     * made from the command line. Deciding this per record instead guarded
+     * against a second tenant who cannot exist, and in exchange left the owner
+     * unable to edit anything created under a second account of their own.
+     */
+    public function test_anyone_signed_in_may_change_the_whole_archive(): void
     {
-        $memory = Memory::factory()->for($this->owner())->create(['title' => 'Theirs']);
+        $memory = Memory::factory()->for($this->owner())->create(['title' => 'Before']);
 
         $this->actingAs(User::factory()->create(), 'sanctum');
 
-        $this->patchJson("/api/memories/{$memory->uuid}", ['title' => 'Mine now'])->assertForbidden();
-        $this->deleteJson("/api/memories/{$memory->uuid}")->assertForbidden();
+        $this->patchJson("/api/memories/{$memory->uuid}", ['title' => 'After'])->assertOk();
 
-        $this->assertSame('Theirs', $memory->fresh()->title);
+        $this->assertSame('After', $memory->fresh()->title);
     }
 
     public function test_the_owner_can_edit_a_memory(): void

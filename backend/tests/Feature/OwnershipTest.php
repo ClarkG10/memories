@@ -26,46 +26,35 @@ class OwnershipTest extends TestCase
         return User::factory()->create(['email' => 'second@example.test']);
     }
 
-    public function test_a_memory_belonging_to_someone_else_cannot_be_edited(): void
+    public function test_a_memory_made_under_another_account_is_still_editable(): void
     {
-        $theirs = Memory::factory()->for($this->second())->create(['title' => 'Theirs']);
-
-        $this->signedInOwner();
-
-        // Visible, because reading is decided for the archive as a whole.
-        $this->getJson("/api/memories/{$theirs->uuid}")->assertOk();
-
-        // And not editable, which is the half that reaches the browser as a
-        // bare refusal.
-        $this->patchJson("/api/memories/{$theirs->uuid}", ['title' => 'Mine now'])->assertForbidden();
-    }
-
-    public function test_the_refusal_says_what_to_do_about_it(): void
-    {
-        $theirs = Memory::factory()->for($this->second())->create();
+        $theirs = Memory::factory()->for($this->second())->create(['title' => 'Recovered']);
 
         $this->signedInOwner();
 
         /*
-         | "This action is unauthorized" is what a boolean produces, and it
-         | gives the owner nothing to act on while they stare at their own
-         | memory refusing to be edited.
+         | The failure this file was written for. A second users row appears
+         | more easily than it should — `archive:owner` given a different email
+         | makes one without comment — and a per-record check then made every
+         | memory under it permanently uneditable, while saying only "This
+         | action is unauthorized" about it. The archive has one owner; being
+         | signed in is what that means.
          */
-        $this->patchJson("/api/memories/{$theirs->uuid}", ['title' => 'Mine'])
-            ->assertForbidden()
-            ->assertJsonPath('message', fn (string $message): bool => str_contains($message, 'different sign-in')
-                && str_contains($message, 'memories:reassign'));
+        $this->patchJson("/api/memories/{$theirs->uuid}", ['title' => 'Mine'])->assertOk();
+
+        $this->assertSame('Mine', $theirs->fresh()->title);
     }
 
-    public function test_the_same_reason_reaches_a_refused_photo_change(): void
+    public function test_a_visitor_still_cannot_change_anything(): void
     {
-        $theirs = Memory::factory()->for($this->second())->create();
+        $theirs = Memory::factory()->for($this->second())->create(['title' => 'Theirs']);
 
-        $this->signedInOwner();
+        // Loosening who counts as the owner must not loosen whether there is
+        // one at all.
+        $this->patchJson("/api/memories/{$theirs->uuid}", ['title' => 'Mine'])->assertUnauthorized();
+        $this->deleteJson("/api/memories/{$theirs->uuid}")->assertUnauthorized();
 
-        $this->putJson("/api/memories/{$theirs->uuid}/media/order", ['order' => [fake()->uuid()]])
-            ->assertForbidden()
-            ->assertJsonPath('message', fn (string $message): bool => str_contains($message, 'different sign-in'));
+        $this->assertSame('Theirs', $theirs->fresh()->title);
     }
 
     public function test_the_doctor_says_when_an_archive_is_split(): void
@@ -74,7 +63,7 @@ class OwnershipTest extends TestCase
         Memory::factory()->for($this->second())->create();
 
         $this->artisan('memories:doctor')
-            ->expectsOutputToContain('more than one owner');
+            ->expectsOutputToContain('More than one account exists');
     }
 
     public function test_reassigning_puts_every_memory_under_one_owner(): void
@@ -91,17 +80,21 @@ class OwnershipTest extends TestCase
         $this->assertSame(3, Memory::query()->where('user_id', $owner->id)->count());
     }
 
-    public function test_reassigning_makes_the_stranded_memory_editable_again(): void
+    public function test_reassigning_is_tidiness_rather_than_a_repair(): void
     {
         $owner = $this->owner();
         $stranded = Memory::factory()->for($this->second())->create(['title' => 'Recovered']);
 
         $this->signedInOwner();
-        $this->patchJson("/api/memories/{$stranded->uuid}", ['title' => 'Mine'])->assertForbidden();
+
+        // Editable before and after: the command exists to keep one archive
+        // under one name, not because anything depends on it.
+        $this->patchJson("/api/memories/{$stranded->uuid}", ['title' => 'One'])->assertOk();
 
         $this->artisan('memories:reassign --to='.$owner->email)->assertSuccessful();
 
-        $this->patchJson("/api/memories/{$stranded->uuid}", ['title' => 'Mine'])->assertOk();
+        $this->patchJson("/api/memories/{$stranded->uuid}", ['title' => 'Two'])->assertOk();
+        $this->assertSame($owner->id, $stranded->fresh()->user_id);
     }
 
     public function test_a_deleted_memory_moves_too(): void

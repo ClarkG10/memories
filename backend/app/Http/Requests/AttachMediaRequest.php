@@ -4,27 +4,14 @@ declare(strict_types=1);
 
 namespace App\Http\Requests;
 
-use Illuminate\Auth\Access\Response;
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Validator;
 
 class AttachMediaRequest extends FormRequest
 {
-    /**
-     * Returns the policy's own answer rather than a boolean, so a refusal
-     * arrives with the reason attached instead of "This action is
-     * unauthorized" and nothing else.
-     */
-    public function authorize(): Response|bool
+    public function authorize(): bool
     {
-        $user = $this->user();
-
-        if ($user === null) {
-            return false;
-        }
-
-        return Gate::forUser($user)->inspect('update', $this->route('memory'));
+        return $this->user()?->can('update', $this->route('memory')) ?? false;
     }
 
     /**
