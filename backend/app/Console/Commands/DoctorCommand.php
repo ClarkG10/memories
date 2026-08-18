@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Models\Memory;
 use App\Models\MemoryMedia;
 use App\Models\UploadSession;
+use App\Models\User;
 use App\Services\GoogleDrive\GoogleDriveService;
 use App\Services\MemoryService;
 use App\Services\TimelineQuery;
@@ -91,6 +92,39 @@ class DoctorCommand extends Command
                     .'. Run `php artisan memories:refresh`.'
                 );
             }
+        }
+
+        /*
+         | An archive belongs to one person, and the policy that guards every
+         | edit is `$user->id === $memory->user_id`. A second users row — which
+         | `archive:owner` creates without comment when given a different email
+         | — therefore splits the archive in two: signing in as one of them
+         | shows every memory and lets you edit none of the other's. From the
+         | browser that reads as "not authorized" with nothing to explain it.
+         */
+        $owners = User::query()
+            ->withCount('memories')
+            ->orderBy('id')
+            ->get(['id', 'email']);
+
+        $this->newLine();
+        $this->components->info('Owner');
+
+        foreach ($owners as $owner) {
+            $this->line(sprintf(
+                '  %s — %d memor%s',
+                $owner->email,
+                (int) $owner->memories_count,
+                (int) $owner->memories_count === 1 ? 'y' : 'ies',
+            ));
+        }
+
+        if ($owners->count() > 1) {
+            $problems++;
+            $this->components->warn('  This archive has more than one owner, so it is split between them.');
+            $this->line('    Signing in as one shows every memory and lets you edit only your own —');
+            $this->line('    which appears in the browser as "not authorized" and nothing else.');
+            $this->line('    Put them back together: php artisan memories:reassign --to=you@example.com');
         }
 
         $this->newLine();

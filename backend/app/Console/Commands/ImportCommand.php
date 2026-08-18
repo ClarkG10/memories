@@ -44,6 +44,7 @@ class ImportCommand extends Command
         {--description= : The words that go underneath}
         {--album= : An album name, if it belongs to one}
         {--folder= : Import this Drive folder without asking}
+        {--owner= : The email address the memory should belong to}
         {--dry-run : Show what would be recovered and change nothing}';
 
     protected $description = 'Rebuild a memory from files that are in Drive but not in the archive';
@@ -59,11 +60,9 @@ class ImportCommand extends Command
             return self::FAILURE;
         }
 
-        $owner = User::query()->orderBy('id')->first();
+        $owner = $this->owner();
 
         if ($owner === null) {
-            $this->components->error('There is no owner yet. Run `php artisan archive:owner` first.');
-
             return self::FAILURE;
         }
 
@@ -187,6 +186,49 @@ class ImportCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Who the recovered memory should belong to.
+     *
+     * Never guessed when there is a choice. Every edit is guarded by
+     * `$user->id === $memory->user_id`, so picking the wrong one produces a
+     * memory that is visible to its owner and editable by nobody they are
+     * likely to be signed in as — and says only "not authorized" about it.
+     */
+    private function owner(): ?User
+    {
+        $owners = User::query()->orderBy('id')->get();
+
+        if ($owners->isEmpty()) {
+            $this->components->error('There is no owner yet. Run `php artisan archive:owner` first.');
+
+            return null;
+        }
+
+        $email = (string) ($this->option('owner') ?? '');
+
+        if ($email !== '') {
+            $chosen = $owners->firstWhere('email', $email);
+
+            if ($chosen === null) {
+                $this->components->error("No owner with the address {$email}.");
+            }
+
+            return $chosen;
+        }
+
+        if ($owners->count() === 1) {
+            return $owners->first();
+        }
+
+        $this->components->error('This archive has more than one owner, so who this belongs to has to be said.');
+
+        foreach ($owners as $one) {
+            $this->line('    --owner='.$one->email);
+        }
+
+        return null;
     }
 
     /**
