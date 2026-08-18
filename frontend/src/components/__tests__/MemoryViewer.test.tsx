@@ -188,6 +188,67 @@ function stubFullscreen() {
   return { request, exit }
 }
 
+describe('a memory holding a great many photographs', () => {
+  function aMemoryOf(count: number) {
+    return aMemory({
+      media_count: count,
+      media: Array.from({ length: count }, (_, i) => anImage({ id: `m${i}` })),
+    })
+  }
+
+  it('shows a dot per photograph while there are few enough to aim at', async () => {
+    mockApi(baseHandlers(aMemoryOf(5)))
+
+    renderArchive('/m/memory-1')
+
+    await screen.findByRole('dialog')
+
+    expect(await screen.findByRole('button', { name: 'Show 1 of 5' })).toBeInTheDocument()
+    expect(screen.queryByRole('slider')).not.toBeInTheDocument()
+  })
+
+  it('swaps to a scrubber once there are too many', async () => {
+    mockApi(baseHandlers(aMemoryOf(49)))
+
+    renderArchive('/m/memory-1')
+
+    await screen.findByRole('dialog')
+
+    /*
+     | Forty-nine dots is 2,156 pixels of row on a 1,440 pixel screen. The row
+     | pushed the viewer's grid column wider than the window, and everything
+     | centred inside it — the photograph, the title — slid off to the right.
+     */
+    expect(await screen.findByRole('slider')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Show 1 of 49' })).not.toBeInTheDocument()
+  })
+
+  it('moves to the photograph the scrubber is dragged to', async () => {
+    mockApi(baseHandlers(aMemoryOf(49)))
+
+    renderArchive('/m/memory-1')
+
+    expect(await screen.findByText('1 / 49')).toBeInTheDocument()
+
+    fireEvent.change(await screen.findByRole('slider'), { target: { value: '30' } })
+
+    expect(screen.getByText('30 / 49')).toBeInTheDocument()
+  })
+
+  it('still counts from one, however many there are', async () => {
+    mockApi(baseHandlers(aMemoryOf(49)))
+
+    renderArchive('/m/memory-1')
+
+    const slider = await screen.findByRole('slider')
+
+    // The photographs are numbered for a person, not indexed for a machine.
+    expect(slider).toHaveAttribute('min', '1')
+    expect(slider).toHaveAttribute('max', '49')
+    expect(slider).toHaveValue('1')
+  })
+})
+
 describe('filling the screen', () => {
   it('offers a way to fill the screen', async () => {
     mockApi(baseHandlers())

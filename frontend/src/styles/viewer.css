@@ -11,6 +11,14 @@
   z-index: var(--z-viewer);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
+  /*
+   | The column has to be stated. Left implicit it is sized `auto`, which means
+   | "as wide as the widest child" — and one row of forty-nine dots is 2,156
+   | pixels wide. The column grew past the window, everything centred inside it
+   | slid right, and the title ran off the edge of the screen.
+   */
+  grid-template-columns: minmax(0, 1fr);
+  overflow: hidden;
   background: var(--viewer-backdrop);
   backdrop-filter: blur(20px);
   color: var(--viewer-ink);
@@ -232,11 +240,14 @@
 }
 
 .viewer__title {
-  margin-top: var(--space-3);
+  max-width: 48rem;
+  margin: var(--space-3) auto 0;
   font-family: var(--font-display);
   font-size: clamp(1.5rem, 3.5vw, 2.25rem);
   line-height: 1.2;
   color: var(--viewer-ink);
+  /* A title long enough to need it wraps rather than leaving the screen. */
+  overflow-wrap: anywhere;
 }
 
 .viewer__description {
@@ -435,4 +446,64 @@
   color: var(--viewer-ink-soft);
   background: rgba(9, 14, 19, 0.55);
   border-radius: inherit;
+}
+
+/* --------------------------------------------------------------------------
+ * Moving through a memory that holds a great many photographs
+ *
+ * Dots are a lovely control for six and a hopeless one for fifty: too small to
+ * aim at, and wider than the screen long before that. This holds its width
+ * whatever the count, and can be dragged, stepped or thrown.
+ * ----------------------------------------------------------------------- */
+
+.viewer__scrub {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+
+.viewer__scrubber {
+  width: min(22rem, 70vw);
+  /* The bar is 4px; the reach is 44. */
+  height: 44px;
+  background: transparent;
+  cursor: pointer;
+  appearance: none;
+}
+
+.viewer__scrubber::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.viewer__scrubber::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.viewer__scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  /* Centres the thumb on a 4px track. */
+  margin-top: -5px;
+  border-radius: 50%;
+  background: var(--viewer-ink);
+  box-shadow: 0 1px 4px rgba(9, 14, 19, 0.6);
+}
+
+.viewer__scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--viewer-ink);
+  box-shadow: 0 1px 4px rgba(9, 14, 19, 0.6);
+}
+
+.viewer__scrubber:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }

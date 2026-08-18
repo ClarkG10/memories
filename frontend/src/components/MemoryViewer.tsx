@@ -20,6 +20,16 @@ interface Props {
 const SWIPE_THRESHOLD = 56
 
 /**
+ * Past this many photographs, dots stop being a control and become a problem.
+ *
+ * Each one is six pixels of ink inside a forty-four pixel target, so a memory
+ * holding forty-nine of them asks for 2,156 pixels of row on a 1,440 pixel
+ * screen — and they are useless to aim at long before that. A scrubber holds
+ * its width whatever the count.
+ */
+const DOTS_UP_TO = 12
+
+/**
  * A memory, opened.
  *
  * Not a modal with a picture in it — the room dims, the photograph is as large
@@ -330,7 +340,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
               </p>
             )}
 
-            {count > 1 && (
+            {count > 1 && count <= DOTS_UP_TO && (
               <div className="viewer__dots" role="group" aria-label="Media in this memory">
                 {media.map((item, position) => (
                   <button
@@ -342,6 +352,28 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
                     onClick={() => setIndex(position)}
                   />
                 ))}
+              </div>
+            )}
+
+            {count > DOTS_UP_TO && (
+              /*
+                | A range input rather than something bespoke: it can be
+                | dragged with a thumb, stepped with the arrow keys, and is
+                | announced properly — all of which the dots gave up the moment
+                | there were too many of them to aim at.
+              */
+              <div className="viewer__scrub">
+                <input
+                  type="range"
+                  className="viewer__scrubber"
+                  min={1}
+                  max={count}
+                  step={1}
+                  value={index + 1}
+                  onChange={(event) => setIndex(Number(event.target.value) - 1)}
+                  aria-label="Move through this memory"
+                  aria-valuetext={`${index + 1} of ${count}`}
+                />
               </div>
             )}
           </>
