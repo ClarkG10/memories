@@ -220,6 +220,8 @@ class FakeGoogleDrive extends GoogleDriveService
                     thumbnailLink: "https://lh3.googleusercontent.com/{$id}=s220",
                     width: 1600,
                     height: 1067,
+                    // Distinct per file unless a test deliberately collides them.
+                    md5: array_key_exists('md5', $file) ? $file['md5'] : 'sum-'.$id,
                 ),
                 'parent' => $file['folder'],
             ];

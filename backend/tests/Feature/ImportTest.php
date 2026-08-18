@@ -150,6 +150,54 @@ class ImportTest extends TestCase
         $this->assertSame(7, $recovered->media()->count());
     }
 
+    public function test_the_same_photograph_uploaded_twice_comes_back_once(): void
+    {
+        $this->owner();
+
+        /*
+         | A save that failed and was tried again puts a second copy of every
+         | file in Drive, and the two attempts do not number them the same way
+         | — so the names disagree while the bytes are identical.
+         */
+        $this->drive->files['drive-a1'] = ['name' => '2025-11-23 A day 01.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => 'aaa'];
+        $this->drive->files['drive-b1'] = ['name' => '2025-11-23 A day 11.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => 'aaa'];
+        $this->drive->files['drive-a2'] = ['name' => '2025-11-23 A day 02.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => 'bbb'];
+
+        $this->artisan('memories:import --no-interaction')
+            ->expectsOutputToContain('1 identical copy left out')
+            ->assertSuccessful();
+
+        $this->assertSame(2, MemoryMedia::query()->count());
+        $this->assertSame(2, (int) Memory::firstOrFail()->media_count);
+    }
+
+    public function test_two_different_photographs_sharing_a_name_are_both_kept(): void
+    {
+        $this->owner();
+
+        // Same name, different bytes: two attempts numbering a set differently
+        // is not evidence that two photographs are the same photograph.
+        $this->drive->files['drive-1'] = ['name' => '2025-11-23 A day 02.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => 'aaa'];
+        $this->drive->files['drive-2'] = ['name' => '2025-11-23 A day 02.jpg', 'folder' => 'f', 'bytes' => 20, 'md5' => 'bbb'];
+
+        $this->artisan('memories:import --no-interaction')->assertSuccessful();
+
+        $this->assertSame(2, MemoryMedia::query()->count());
+    }
+
+    public function test_a_file_with_no_checksum_is_kept_rather_than_guessed_at(): void
+    {
+        $this->owner();
+
+        // Dropping a photograph on a guess is far worse than one copy too many.
+        $this->drive->files['drive-1'] = ['name' => '2025-11-23 A day 01.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => null];
+        $this->drive->files['drive-2'] = ['name' => '2025-11-23 A day 02.jpg', 'folder' => 'f', 'bytes' => 10, 'md5' => null];
+
+        $this->artisan('memories:import --no-interaction')->assertSuccessful();
+
+        $this->assertSame(2, MemoryMedia::query()->count());
+    }
+
     public function test_it_says_so_when_there_is_nothing_to_recover(): void
     {
         $this->owner();

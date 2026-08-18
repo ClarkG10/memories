@@ -91,8 +91,16 @@ class ImportCommand extends Command
             return self::SUCCESS;
         }
 
-        /** @var Collection<int, array{file: DriveFile, parent: string|null}> $files */
-        $files = $groups[$chosen];
+        /** @var Collection<int, array{file: DriveFile, parent: string|null}> $found */
+        $found = $groups[$chosen];
+
+        /*
+         | A save that failed and was tried again left two copies of every
+         | file, numbered differently by each attempt. Importing both would
+         | rebuild the memory with every photograph in it twice.
+         */
+        ['kept' => $files, 'duplicates' => $duplicates] = DriveReconciler::dedupe($found);
+
         $guess = DriveReconciler::readName($files->first()['file']->name);
 
         /*
@@ -126,6 +134,14 @@ class ImportCommand extends Command
         $this->newLine();
         $this->line(sprintf('  "%s" — %s — %d file(s)', $title, $date, $files->count()));
 
+        if ($duplicates->isNotEmpty()) {
+            $this->line(sprintf(
+                '  %d identical cop%s left out — the same photographs, uploaded twice.',
+                $duplicates->count(),
+                $duplicates->count() === 1 ? 'y' : 'ies',
+            ));
+        }
+
         foreach ($files->take(5) as $entry) {
             $this->line('    '.$entry['file']->name);
         }
@@ -157,6 +173,17 @@ class ImportCommand extends Command
             $memory->media_count,
         ));
         $this->line('  The photographs will sharpen as they are rendered; a queue worker does that.');
+
+        if ($duplicates->isNotEmpty()) {
+            $this->newLine();
+            $this->line(sprintf(
+                '  %d identical cop%s are still in Drive and belong to nothing.',
+                $duplicates->count(),
+                $duplicates->count() === 1 ? 'y is' : 'ies are',
+            ));
+            $this->line('  They are exact copies of photographs now in the archive, so removing');
+            $this->line('  them in Drive loses nothing. `memories:reconcile` will keep listing them.');
+        }
 
         return self::SUCCESS;
     }

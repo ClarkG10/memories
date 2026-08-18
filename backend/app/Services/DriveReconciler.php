@@ -83,6 +83,45 @@ final class DriveReconciler
     }
 
     /**
+     * The same photograph, uploaded more than once.
+     *
+     * A save that fails and is tried again puts a second copy of every file in
+     * Drive, and the two attempts do not number them the same way — so the
+     * names disagree while the bytes are identical. Drive's own checksum is
+     * the only honest way to tell, and it is the same test the upload path
+     * already applies when a file is offered twice.
+     *
+     * @param  Collection<int, array{file: DriveFile, parent: string|null}>  $files
+     * @return array{kept: Collection<int, array{file: DriveFile, parent: string|null}>, duplicates: Collection<int, array{file: DriveFile, parent: string|null}>}
+     */
+    public static function dedupe(Collection $files): array
+    {
+        $seen = [];
+        $kept = [];
+        $duplicates = [];
+
+        foreach ($files as $entry) {
+            $checksum = $entry['file']->md5;
+
+            // No checksum means no way to be sure, and dropping a photograph
+            // on a guess is far worse than keeping one copy too many.
+            if ($checksum === null || ! isset($seen[$checksum])) {
+                if ($checksum !== null) {
+                    $seen[$checksum] = true;
+                }
+
+                $kept[] = $entry;
+
+                continue;
+            }
+
+            $duplicates[] = $entry;
+        }
+
+        return ['kept' => collect($kept), 'duplicates' => collect($duplicates)];
+    }
+
+    /**
      * What the archive named a file when it saved it:
      *
      *   2025-11-23 Read this to remember 07.jpg
