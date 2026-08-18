@@ -20,7 +20,12 @@ final class PosterFrame
     /** Refuse anything larger before decoding: a decode is where the cost is. */
     private const MAX_ENCODED_BYTES = 4 * 1024 * 1024;
 
-    private const MAX_EDGE = 1280;
+    /*
+     | Matches the browser's capture width. Wide enough to stay sharp as the
+     | lead image of a memory on a retina screen, where that frame is drawn at
+     | around 1500 device pixels.
+     */
+    private const MAX_EDGE = 1920;
 
     /**
      * Turn a `data:image/...;base64,...` string into JPEG bytes, or null if it
@@ -99,7 +104,11 @@ final class PosterFrame
             );
 
             return 'data:image/jpeg;base64,'.base64_encode(ImageEditor::toJpeg($thumb, 45));
-        } catch (Throwable) {
+        } catch (Throwable $e) {
+            // Only the blur-up: the poster itself is already stored, so this
+            // costs a moment of flat colour rather than a missing picture.
+            Log::debug('Could not build a blur-up from a poster frame.', ['error' => $e->getMessage()]);
+
             return null;
         }
     }

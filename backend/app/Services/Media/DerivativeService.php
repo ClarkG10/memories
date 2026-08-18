@@ -245,7 +245,13 @@ class DerivativeService
     {
         try {
             $url = $this->drive->thumbnailUrl($media->drive_file_id);
-        } catch (GoogleDriveException) {
+        } catch (GoogleDriveException $e) {
+            Log::warning('Could not fall back to a Drive thumbnail.', [
+                'media_uuid' => $media->uuid,
+                'status' => $e->status,
+                'error' => $e->getMessage(),
+            ]);
+
             return false;
         }
 
@@ -419,6 +425,14 @@ class DerivativeService
         try {
             $lock->block(30);
         } catch (Throwable) {
+            /*
+             | Thirty seconds waiting for whoever is rendering this file, and
+             | they never finished. The caller turns this into "not available",
+             | which from the outside is indistinguishable from a photograph
+             | that does not exist — so it is said plainly here instead.
+             */
+            Log::warning('Gave up waiting to render a derivative.', ['lock' => $key]);
+
             return null;
         }
 

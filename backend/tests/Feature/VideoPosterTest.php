@@ -108,8 +108,12 @@ class VideoPosterTest extends TestCase
 
         $this->assertNull($media->placeholder, 'No frame was captured, so there is nothing to blur up.');
 
-        // Nothing on disk, so serving the poster has to go out to Drive.
-        $this->assertFalse(Storage::disk('derivatives')->exists("{$media->uuid}/poster.jpg"));
+        /*
+         | The still now comes from Drive rather than from the browser, and it
+         | is fetched when the memory is saved rather than when someone first
+         | looks at it — so by the time anyone asks, it is already on disk.
+         */
+        $this->assertTrue(Storage::disk('derivatives')->exists("{$media->uuid}/poster.jpg"));
 
         $this->get("/api/media/{$media->uuid}/poster")->assertOk();
     }
@@ -136,7 +140,20 @@ class VideoPosterTest extends TestCase
             $media = MemoryMedia::firstOrFail();
 
             $this->assertNull($media->placeholder, "Stored a placeholder for: {$hostile}");
-            $this->assertFalse(Storage::disk('derivatives')->exists("{$media->uuid}/poster.jpg"));
+
+            /*
+             | A poster does end up on disk, because a video with no usable
+             | frame falls back to Drive's own. What matters is whose bytes
+             | they are: the hostile payload must never be what gets written
+             | and later served back as an image.
+             */
+            $stored = Storage::disk('derivatives')->exists("{$media->uuid}/poster.jpg")
+                ? Storage::disk('derivatives')->get("{$media->uuid}/poster.jpg")
+                : null;
+
+            if ($stored !== null) {
+                $this->assertSame('thumbnail-bytes', $stored, "Served back what was sent: {$hostile}");
+            }
         }
     }
 

@@ -323,3 +323,51 @@
     animation: none;
   }
 }
+
+/* --------------------------------------------------------------------------
+ * Limits, said out loud
+ * ----------------------------------------------------------------------- */
+
+/*
+ | How much room is left in a field. Quiet, and absent until it is nearly a
+ | real question — see FieldCount for why.
+ */
+.field__count {
+  /* The field is already a column with a gap; no margin of its own. */
+  align-self: flex-end;
+  margin-top: calc(var(--space-1) * -1);
+  font-size: 0.75rem;
+  letter-spacing: 0.04em;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.field__count[data-full='true'] {
+  color: var(--blue-deeper);
+  font-weight: 500;
+}
+
+/* What this archive will take, before anything has been chosen. */
+.dropzone__limits {
+  margin-top: var(--space-2);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+}
+
+/*
+ | The server's name for a request that failed. Not addressed to the person
+ | reading it, so it is set well below everything that is.
+ */
+.notice__reference {
+  margin-top: var(--space-4);
+  font-size: 0.75rem;
+  color: var(--ink-faint);
+}
+
+.notice__reference code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Selects whole on one click: it exists to be copied and quoted. */
+  user-select: all;
+  letter-spacing: 0.04em;
+}

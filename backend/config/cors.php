@@ -27,14 +27,16 @@ return [
     'allowed_headers' => ['*'],
 
     /*
-     | Range/Content-Range are needed so the video player can seek, and
-     | Content-Disposition so downloads keep their filename.
+     | Range/Content-Range are needed so the video player can seek,
+     | Content-Disposition so downloads keep their filename, and X-Request-Id
+     | so a failure the browser saw can be quoted back and found in the log.
      */
     'exposed_headers' => [
         'Content-Length',
         'Content-Range',
         'Accept-Ranges',
         'Content-Disposition',
+        'X-Request-Id',
     ],
 
     'max_age' => 3600,

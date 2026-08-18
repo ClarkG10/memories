@@ -354,3 +354,85 @@
 .viewer[data-bare='true'] .viewer__step:focus-visible {
   opacity: 1;
 }
+
+/* --------------------------------------------------------------------------
+ * The photograph arriving
+ *
+ * Three layers, worst to best, each shown as soon as it exists. The archive
+ * never shows an empty frame and never shows a broken one.
+ * ----------------------------------------------------------------------- */
+
+.viewerimage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.viewerimage__blur,
+.viewerimage__quick,
+.viewerimage__full {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius);
+}
+
+.viewer[data-bare='true'] .viewerimage__blur,
+.viewer[data-bare='true'] .viewerimage__quick,
+.viewer[data-bare='true'] .viewerimage__full {
+  border-radius: 0;
+}
+
+/* The inline blur that arrived with the memory: on screen immediately. */
+.viewerimage__blur {
+  filter: blur(24px);
+  transform: scale(1.04);
+}
+
+/*
+ | The size the timeline already fetched. Free, and the reason a memory opens
+ | onto the photograph rather than onto a smudge of its colours.
+ */
+.viewerimage__quick {
+  filter: blur(2px);
+}
+
+.viewerimage__full {
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+
+.viewerimage[data-loaded='true'] .viewerimage__full {
+  opacity: 1;
+}
+
+/* Once the real thing is up, nothing underneath should show through it. */
+.viewerimage[data-loaded='true'] .viewerimage__blur,
+.viewerimage[data-loaded='true'] .viewerimage__quick {
+  opacity: 0;
+  transition: opacity var(--duration) var(--ease);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .viewerimage__full,
+  .viewerimage[data-loaded='true'] .viewerimage__blur,
+  .viewerimage[data-loaded='true'] .viewerimage__quick {
+    transition: none;
+  }
+}
+
+.viewerimage__failed {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  text-align: center;
+  color: var(--viewer-ink-soft);
+  background: rgba(9, 14, 19, 0.55);
+  border-radius: inherit;
+}

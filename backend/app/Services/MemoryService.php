@@ -6,6 +6,7 @@ namespace App\Services;
 
 use App\Exceptions\MemoryUploadException;
 use App\Jobs\DeleteDriveFile;
+use App\Jobs\WarmDerivatives;
 use App\Models\Memory;
 use App\Models\MemoryMedia;
 use App\Models\UploadSession;
@@ -561,6 +562,14 @@ class MemoryService
             if ($poster !== null) {
                 $this->derivatives->storePoster($media, $poster);
             }
+
+            /*
+             | Build the renditions now, on the queue, rather than when someone
+             | first looks. The person who just saved this memory is about to
+             | be the first to open it, and making them wait on a Drive
+             | download and three resizes is the whole of the lag they feel.
+             */
+            WarmDerivatives::dispatch($media->id);
         }
     }
 

@@ -10,6 +10,7 @@ use App\Services\GoogleDrive\GoogleDriveException;
 use App\Services\GoogleDrive\GoogleDriveService;
 use App\Services\Media\DerivativeService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -40,7 +41,27 @@ class MediaController extends Controller
         $width = (int) $request->integer('w', 1600);
         $path = $this->derivatives->imagePath($media, $width);
 
-        abort_if($path === null, 404, 'That photo is not available right now.');
+        if ($path === null) {
+            /*
+             | The browser gets a 404 and draws a broken photograph; without
+             | this line that is the entire record of the event. Every reason
+             | this can happen — a format GD will not decode, an original too
+             | large to resize, Drive refusing the download, a render lock that
+             | never came free — is already logged further in, and this ties
+             | them to the photograph the person was actually looking at.
+             */
+            Log::warning('No rendition available for a photograph.', [
+                'media_uuid' => $media->uuid,
+                'memory_uuid' => $media->memory?->uuid,
+                'requested_width' => $width,
+                'drive_file_id' => $media->drive_file_id,
+                'original_name' => $media->original_name,
+                'mime_type' => $media->mime_type,
+                'file_size' => $media->file_size,
+            ]);
+
+            abort(404, 'That photo is not available right now.');
+        }
 
         return $this->fileResponse($path, 'image/jpeg');
     }
@@ -76,7 +97,20 @@ class MediaController extends Controller
 
         try {
             $upstream = $this->drive->download($media->drive_file_id, is_string($range) ? $range : null);
-        } catch (GoogleDriveException) {
+        } catch (GoogleDriveException $e) {
+            /*
+             | Logged before it is turned into a sentence. From the browser
+             | this is one video that will not play; from here it is usually
+             | the first sign that Drive is refusing everything, and that is
+             | only visible if it was written down.
+             */
+            Log::error('Could not stream a video from Drive.', [
+                'media_uuid' => $media->uuid,
+                'status' => $e->status,
+                'reason' => $e->reason,
+                'error' => $e->getMessage(),
+            ]);
+
             abort(502, "We couldn't reach this video right now.");
         }
 

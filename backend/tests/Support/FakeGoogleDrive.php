@@ -196,12 +196,21 @@ class FakeGoogleDrive extends GoogleDriveService
         return 'folder-'.Str::slug($name);
     }
 
+    /** Overridable so a test can put the account near its ceiling. */
+    public ?int $quotaLimit = 15_000_000_000;
+
+    public int $quotaUsage = 1_000_000;
+
+    public int $aboutCalls = 0;
+
     /**
      * @return array{email: string|null, limit: int|null, usage: int|null}
      */
     public function about(): array
     {
-        return ['email' => 'archive@example.com', 'limit' => 15_000_000_000, 'usage' => 1_000_000];
+        $this->aboutCalls++;
+
+        return ['email' => 'archive@example.com', 'limit' => $this->quotaLimit, 'usage' => $this->quotaUsage];
     }
 
     public function uploadCount(): int

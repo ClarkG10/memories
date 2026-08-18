@@ -12,24 +12,40 @@ export class ApiError extends Error {
   readonly status: number
   readonly retryable: boolean
   readonly errors: Record<string, string[]>
+  /**
+   * The server's name for this exact request, present on failures that left
+   * something in the log. Quoting it back is the whole difference between
+   * "it broke" and a line someone can actually go and read.
+   */
+  readonly reference: string | null
 
   constructor(
     message: string,
     status: number,
     retryable = true,
     errors: Record<string, string[]> = {},
+    reference: string | null = null,
   ) {
     super(message)
     this.name = 'ApiError'
     this.status = status
     this.retryable = retryable
     this.errors = errors
+    this.reference = reference
   }
 
   /** The first field-level message, for showing next to an input. */
   fieldError(field: string): string | undefined {
     return this.errors[field]?.[0]
   }
+}
+
+/**
+ * The reference off whatever was thrown, if it carries one. Query hooks hand
+ * back `unknown`, and every error surface would otherwise need the same cast.
+ */
+export function referenceOf(error: unknown): string | null {
+  return error instanceof ApiError ? error.reference : null
 }
 
 export const auth = {
@@ -67,12 +83,20 @@ async function toError(response: Response): Promise<ApiError> {
   let retryable = true
   let errors: Record<string, string[]> = {}
 
+  /*
+   | The header is set on every response; the body carries it only on the
+   | failures worth looking up. Preferring the body means a reference is shown
+   | exactly when the server thinks there is something to find.
+   */
+  let reference: string | null = null
+
   try {
     const body = await response.json()
 
     if (typeof body?.message === 'string' && body.message.length > 0) message = body.message
     if (typeof body?.retryable === 'boolean') retryable = body.retryable
     if (body?.errors && typeof body.errors === 'object') errors = body.errors
+    if (typeof body?.reference === 'string') reference = body.reference
 
     // Laravel puts validation detail under `errors`; the summary line it
     // generates is less useful than the field message itself.
@@ -92,7 +116,13 @@ async function toError(response: Response): Promise<ApiError> {
     message = 'That was a lot at once. Give it a moment and try again.'
   }
 
-  return new ApiError(message, response.status, retryable, errors)
+  // A 5xx with no reference in its body never reached the application at all
+  // — a gateway, a proxy — and the header is the only thing there is to go on.
+  if (reference === null && response.status >= 500) {
+    reference = response.headers.get('X-Request-Id')
+  }
+
+  return new ApiError(message, response.status, retryable, errors, reference)
 }
 
 async function send(path: string, init: RequestInit): Promise<Response> {

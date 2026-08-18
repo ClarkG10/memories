@@ -74,6 +74,36 @@ export interface Archive {
     max_video_bytes: number
     accepts: string[]
   }
+  /** What a memory may say. The same numbers the server validates against. */
+  text: TextLimits
+  /**
+   * How much room is genuinely left. Owner-only — a visitor is told nothing
+   * about the Drive account behind the archive. A null figure inside it means
+   * "could not be determined", never "none left".
+   */
+  storage: {
+    disk_free_bytes: number | null
+    drive_free_bytes: number | null
+    drive_total_bytes: number | null
+    headroom_bytes: number
+    max_image_bytes: number
+    max_video_bytes: number
+  } | null
+}
+
+export interface TextLimits {
+  title: number
+  description: number
+  location: number
+  album: number
+}
+
+/** Sensible values for the moment before the archive has answered. */
+export const DEFAULT_TEXT_LIMITS: TextLimits = {
+  title: 500,
+  description: 50_000,
+  location: 255,
+  album: 190,
 }
 
 export interface UploadSession {

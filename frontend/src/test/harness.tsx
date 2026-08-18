@@ -108,11 +108,13 @@ export function anArchive(overrides: Partial<Archive> = {}): Archive {
     storage_connected: true,
     upload: {
       chunk_bytes: 4194304,
-      max_files: 40,
-      max_image_bytes: 52428800,
-      max_video_bytes: 2147483648,
+      max_files: 200,
+      max_image_bytes: 262144000,
+      max_video_bytes: 8589934592,
       accepts: ['image/jpeg', 'video/mp4'],
     },
+    text: { title: 500, description: 50_000, location: 255, album: 190 },
+    storage: null,
     ...overrides,
   }
 }

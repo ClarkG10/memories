@@ -80,6 +80,41 @@ export function useMemory(id: string | null) {
 }
 
 /**
+ * Fetch a memory before it is opened.
+ *
+ * Opening one costs a request for the memory and then a request for its
+ * largest photograph, one after the other, and the second cannot start until
+ * the first has answered. Pointing at a memory is a reliable signal that it is
+ * about to be opened, so both are started then — by the time the click lands
+ * the memory is usually already there and the photograph is on its way.
+ *
+ * Deliberately cheap to be wrong about: a prefetch that is never used costs
+ * one small response, and a failed one is swallowed rather than surfaced.
+ */
+export function usePrefetchMemory() {
+  const client = useQueryClient()
+
+  return (id: string, preview?: { full?: string; display?: string; thumb?: string; poster?: string }) => {
+    void client
+      .prefetchQuery({
+        queryKey: keys.memory(id),
+        queryFn: ({ signal }) => api.get<{ data: Memory }>(`/api/memories/${id}`, signal),
+        staleTime: 60 * 1000,
+      })
+      .catch(() => undefined)
+
+    const source = preview?.full ?? preview?.display ?? preview?.poster
+
+    if (source) {
+      const image = new Image()
+      image.fetchPriority = 'low'
+      image.decoding = 'async'
+      image.src = source
+    }
+  }
+}
+
+/**
  * Anything that changes the archive retires every cached read of it. The
  * server does the same thing on its side, for the same reason: a timeline that
  * still shows a deleted memory is worse than a slower one.

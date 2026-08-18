@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Exceptions\MemoryUploadException;
+use App\Http\Middleware\AttachRequestId;
 use App\Http\Middleware\EnsureArchiveIsViewable;
 use App\Http\Middleware\EnsureMediaIsViewable;
 use App\Services\GoogleDrive\GoogleDriveException;
@@ -36,8 +37,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
 
         // The React app is a separate origin, so preflight and CORS headers
-        // apply to every API route.
+        // apply to every API route. The request id goes on first, so every
+        // line written while handling the request carries it — including the
+        // ones written by CORS rejections.
         $middleware->api(prepend: [
+            AttachRequestId::class,
             HandleCors::class,
         ]);
     })
@@ -45,6 +49,28 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
+
+        /*
+         | Attached to every reported exception, so a stack trace in the log
+         | says who it happened to and which request it belonged to. The
+         | request id is the thread back to the reference the person was shown.
+         */
+        $exceptions->context(fn (): array => [
+            'user_id' => auth()->id(),
+            'request_id' => request()->attributes->get('request_id'),
+        ]);
+
+        /*
+         | A file this archive will not accept is the person's problem to fix,
+         | not the server's — but it is still worth a line. "Nothing I upload
+         | works" is only diagnosable if the refusals were written down.
+         */
+        $exceptions->report(function (UnsupportedMediaException $e): bool {
+            Log::info('Refused a file.', ['reason' => $e->getMessage()]);
+
+            // Handled: no stack trace needed for something entirely expected.
+            return false;
+        });
 
         /*
          | Errors reach the person as sentences, not status codes. The detail
@@ -57,11 +83,16 @@ return Application::configure(basePath: dirname(__DIR__))
                 return null;
             }
 
-            Log::error('Memory upload failed.', ['error' => $e->getMessage(), 'cause' => $e->getPrevious()?->getMessage()]);
+            Log::error('Memory upload failed.', [
+                'error' => $e->getMessage(),
+                'cause' => $e->getPrevious()?->getMessage(),
+                'reference' => $request->attributes->get('request_id'),
+            ]);
 
             return response()->json([
                 'message' => $e->getMessage(),
                 'retryable' => $e->retryable,
+                'reference' => $request->attributes->get('request_id'),
             ], 422);
         });
 
@@ -85,6 +116,7 @@ return Application::configure(basePath: dirname(__DIR__))
                 'error' => $e->getMessage(),
                 'status' => $e->status,
                 'reason' => $e->reason,
+                'reference' => $request->attributes->get('request_id'),
             ]);
 
             return response()->json([

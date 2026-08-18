@@ -1,10 +1,12 @@
 import { useRef, useState } from 'react'
+import { FieldCount } from './FieldCount'
 import { ApiError } from '../api/client'
 import { idempotencyKey, useAlbums, useCreateMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
 import { useUploadQueue } from '../hooks/useUploadQueue'
 import { todayAsInputValue } from '../lib/dates'
-import type { Archive } from '../api/types'
+import { DEFAULT_TEXT_LIMITS, type Archive } from '../api/types'
+import { formatBytes } from '../lib/bytes'
 
 interface Props {
   archive: Archive
@@ -22,6 +24,7 @@ interface Props {
  */
 export function ComposeSheet({ archive, onClose, onSaved }: Props) {
   const queue = useUploadQueue(archive)
+  const limits = archive.text ?? DEFAULT_TEXT_LIMITS
   const create = useCreateMemory()
   const albums = useAlbums()
   const containerRef = useOverlay(true, () => {
@@ -137,6 +140,21 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
             <p className="dropzone__lead">Choose photos and videos</p>
             <p className="dropzone__hint">Everything you pick becomes one memory.</p>
 
+            {/*
+              | Said before anything is chosen rather than after something is
+              | refused. These are wide enough that most people will never meet
+              | them, which is exactly why they should be visible: meeting one
+              | unannounced reads as the archive being broken.
+            */}
+            <p className="dropzone__limits">
+              Up to {archive.upload.max_files} files ·
+              {' '}photos to {formatBytes(archive.upload.max_image_bytes)} ·
+              {' '}videos to {formatBytes(archive.upload.max_video_bytes)}
+              {archive.storage?.drive_free_bytes != null && (
+                <> · {formatBytes(archive.storage.drive_free_bytes)} left in Drive</>
+              )}
+            </p>
+
             <button
               type="button"
               className="button button--quiet"
@@ -235,10 +253,11 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
                 className="field__input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                maxLength={160}
+                maxLength={limits.title}
                 placeholder="That beautiful evening"
                 disabled={busy}
               />
+              <FieldCount value={title} limit={limits.title} />
             </label>
 
             <div className="compose__row">
@@ -260,10 +279,11 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
                   className="field__input"
                   value={location}
                   onChange={(event) => setLocation(event.target.value)}
-                  maxLength={160}
+                  maxLength={limits.location}
                   placeholder="Butuan"
                   disabled={busy}
                 />
+                <FieldCount value={location} limit={limits.location} />
               </label>
             </div>
 
@@ -283,7 +303,7 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
                 className="field__input"
                 value={album}
                 onChange={(event) => setAlbum(event.target.value)}
-                maxLength={80}
+                maxLength={limits.album}
                 list="album-names"
                 placeholder="Our Wedding"
                 aria-describedby="memory-album-hint"
@@ -309,10 +329,11 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
                 className="field__textarea"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                maxLength={5000}
+                maxLength={limits.description}
                 placeholder="One of those evenings we wish we could replay."
                 disabled={busy}
               />
+              <FieldCount value={description} limit={limits.description} />
             </label>
           </div>
 

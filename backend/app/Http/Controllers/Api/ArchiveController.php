@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Services\GoogleDrive\GoogleDriveService;
+use App\Services\UploadCapacity;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,8 +16,10 @@ use Illuminate\Http\Request;
  */
 class ArchiveController extends Controller
 {
-    public function show(Request $request, GoogleDriveService $drive): JsonResponse
+    public function show(Request $request, GoogleDriveService $drive, UploadCapacity $capacity): JsonResponse
     {
+        $owner = $request->user() !== null;
+
         return response()->json([
             'data' => [
                 'title' => config('memories.title'),
@@ -37,6 +40,25 @@ class ArchiveController extends Controller
                     'max_video_bytes' => (int) config('memories.uploads.max_bytes.video'),
                     'accepts' => array_keys((array) config('memories.uploads.mime_types')),
                 ],
+
+                /*
+                 | The limits on what a memory may say, so the interface can
+                 | count towards the same numbers the validator enforces
+                 | rather than a second set that drifts away from them.
+                 */
+                'text' => [
+                    'title' => (int) config('memories.text.title'),
+                    'description' => (int) config('memories.text.description'),
+                    'location' => (int) config('memories.text.location'),
+                    'album' => (int) config('memories.text.album'),
+                ],
+
+                /*
+                 | How much room is genuinely left, for the owner only. A
+                 | visitor has no use for it and it says more about the
+                 | owner's Google account than a visitor is owed.
+                 */
+                'storage' => $owner ? $capacity->snapshot() : null,
             ],
         ]);
     }

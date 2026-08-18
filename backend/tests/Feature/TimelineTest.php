@@ -119,6 +119,68 @@ class TimelineTest extends TestCase
             ]]);
     }
 
+    /**
+     * The symptom this covers: a year that simply never appears. A page holds
+     * 24 memories, so once a recent year has more than that, every earlier
+     * year sits on the second page — and if the walk stops after the first,
+     * they are all invisible while nothing anywhere reports an error.
+     */
+    public function test_an_earlier_year_is_reachable_by_walking_the_cursor(): void
+    {
+        $owner = $this->owner();
+
+        Memory::factory()->count(30)->for($owner)->on('2026-05-01')->create();
+        Memory::factory()->count(4)->for($owner)->on('2025-07-30')->create();
+
+        $first = $this->getJson('/api/timeline')->assertOk();
+
+        $this->assertCount(24, $first->json('data'));
+        $this->assertTrue($first->json('meta.has_more'));
+
+        // Nothing from 2025 on the first page: it is entirely 2026.
+        $this->assertSame(
+            ['2026'],
+            array_values(array_unique(array_map(
+                fn (array $memory): string => substr((string) $memory['memory_date'], 0, 4),
+                $first->json('data'),
+            ))),
+        );
+
+        $seen = [];
+        $cursor = $first->json('meta.next_cursor');
+        $pages = 0;
+
+        while ($cursor !== null && $pages < 10) {
+            $next = $this->getJson('/api/timeline?cursor='.urlencode((string) $cursor))->assertOk();
+
+            foreach ($next->json('data') as $memory) {
+                $seen[] = substr((string) $memory['memory_date'], 0, 4);
+            }
+
+            $cursor = $next->json('meta.next_cursor');
+            $pages++;
+        }
+
+        $this->assertContains('2025', $seen, 'The earlier year never arrived.');
+        $this->assertSame(4, count(array_filter($seen, fn (string $year): bool => $year === '2025')));
+    }
+
+    /** The year list is the archive's spine and must span every year in it. */
+    public function test_the_year_list_spans_years_beyond_the_first_page(): void
+    {
+        $owner = $this->owner();
+
+        Memory::factory()->count(30)->for($owner)->on('2026-05-01')->create();
+        Memory::factory()->count(4)->for($owner)->on('2025-07-30')->create();
+
+        $this->getJson('/api/timeline/years')
+            ->assertOk()
+            ->assertExactJson(['data' => [
+                ['year' => 2026, 'count' => 30],
+                ['year' => 2025, 'count' => 4],
+            ]]);
+    }
+
     public function test_a_private_archive_shows_a_stranger_nothing(): void
     {
         config(['memories.public' => false]);

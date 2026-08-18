@@ -28,7 +28,10 @@ use RuntimeException;
  */
 class UploadSessionService
 {
-    public function __construct(private readonly MediaInspector $inspector) {}
+    public function __construct(
+        private readonly MediaInspector $inspector,
+        private readonly UploadCapacity $capacity,
+    ) {}
 
     /**
      * Reserve space for a file that is about to arrive.
@@ -43,11 +46,20 @@ class UploadSessionService
         if ($size <= 0 || $size > $ceiling) {
             throw ValidationException::withMessages([
                 'size' => [sprintf(
-                    'That file is too large. The most this archive accepts is %s GB.',
-                    round($ceiling / 1024 ** 3, 1),
+                    'That file is %s, and the most this archive accepts is %s.',
+                    UploadCapacity::human(max(0, $size)),
+                    UploadCapacity::human($ceiling),
                 )],
             ]);
         }
+
+        /*
+         | The stated maximum is one thing; whether the bytes will physically
+         | fit is another. Asked here, before the browser sends the first
+         | chunk, because finding out at the end of a two-gigabyte video is
+         | the cruellest possible moment to be told there was never any room.
+         */
+        $this->capacity->guard($size);
 
         $chunkSize = (int) config('memories.uploads.chunk_bytes');
 

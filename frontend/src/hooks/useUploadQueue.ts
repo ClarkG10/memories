@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError } from '../api/client'
 import { discardUpload, uploadFile } from '../api/upload'
 import { capturePosterFrame } from '../lib/poster'
+import { formatBytes } from '../lib/bytes'
 import type { Archive } from '../api/types'
 
 export interface PendingFile {
@@ -82,8 +83,15 @@ export function useUploadQueue(archive: Archive | undefined) {
         const limit =
           kind === 'video' ? archive?.upload.max_video_bytes : archive?.upload.max_image_bytes
 
+        /*
+         | Both numbers, always. "Larger than this archive accepts" leaves
+         | someone with a 4 GB video no idea whether to trim ten seconds off
+         | it or give up, and no way to find out but trial and error.
+         */
         if (limit && file.size > limit) {
-          refused.push(`${file.name} is larger than this archive accepts.`)
+          refused.push(
+            `${file.name} is ${formatBytes(file.size)} — ${kind === 'video' ? 'videos' : 'photos'} can be up to ${formatBytes(limit)}.`,
+          )
           continue
         }
 
@@ -92,7 +100,11 @@ export function useUploadQueue(archive: Archive | undefined) {
         if (seen.has(id)) continue
 
         if (fresh.length >= room) {
-          refused.push(`A memory can hold up to ${max} photos and videos.`)
+          refused.push(
+            current.length > 0
+              ? `A memory holds up to ${max} files, and there are already ${current.length}.`
+              : `A memory holds up to ${max} photos and videos.`,
+          )
           break
         }
 

@@ -3,6 +3,7 @@ import { MemoryPlate } from './MemoryPlate'
 import { EmptyState } from './EmptyState'
 import { TimelineSkeleton } from './TimelineSkeleton'
 import { Notice } from './Notice'
+import { referenceOf } from '../api/client'
 import { useTimeline } from '../api/queries'
 import { monthName } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
@@ -61,6 +62,7 @@ export function Timeline({ year, canManage, onOpen, onEdit, onRemove, onAdd }: P
         message="We couldn't load your memories just now."
         actionLabel="Try again"
         onAction={() => void query.refetch()}
+        reference={referenceOf(query.error)}
       />
     )
   }

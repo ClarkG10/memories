@@ -412,7 +412,9 @@ class GoogleDriveService
             $lock->block(15);
         } catch (Throwable) {
             // Waited long enough that whoever held the lock has finished or
-            // died. Fall through and resolve it ourselves.
+            // died. Fall through and resolve it ourselves — noted, because
+            // two winners here is how a month ends up with two folders.
+            Log::info('Resolving a Drive folder without the lock.', ['folder' => $cacheKey]);
         }
 
         try {

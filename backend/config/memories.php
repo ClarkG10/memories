@@ -47,12 +47,30 @@ return [
          */
         'chunk_bytes' => (int) env('UPLOAD_CHUNK_BYTES', 4 * 1024 * 1024),
         'session_ttl_minutes' => (int) env('UPLOAD_SESSION_TTL_MINUTES', 180),
-        'max_files_per_memory' => (int) env('MEDIA_MAX_FILES_PER_MEMORY', 40),
+        'max_files_per_memory' => (int) env('MEDIA_MAX_FILES_PER_MEMORY', 200),
 
+        /*
+         | Set high enough that an ordinary day out never meets them. They are
+         | not a judgement about what belongs in an archive; they exist because
+         | the file lands on this server's disk on its way to Drive, and a
+         | request with no ceiling at all is a way to fill that disk.
+         |
+         | The limits that actually bite first are checked at the moment an
+         | upload opens, and answered with the real number: how much room is
+         | left on this disk, and how much is left in the Drive account.
+         */
         'max_bytes' => [
-            'image' => (int) env('MEDIA_MAX_IMAGE_BYTES', 50 * 1024 * 1024),
-            'video' => (int) env('MEDIA_MAX_VIDEO_BYTES', 2 * 1024 * 1024 * 1024),
+            'image' => (int) env('MEDIA_MAX_IMAGE_BYTES', 250 * 1024 * 1024),
+            'video' => (int) env('MEDIA_MAX_VIDEO_BYTES', 8 * 1024 * 1024 * 1024),
         ],
+
+        /*
+         | Refuse an upload that would leave the server with less free disk
+         | than this. Derivatives, logs and the database all live on the same
+         | disk, and an archive that has filled it cannot even record that it
+         | has run out.
+         */
+        'disk_headroom_bytes' => (int) env('UPLOAD_DISK_HEADROOM_BYTES', 2 * 1024 * 1024 * 1024),
 
         /*
          | Allowed media, keyed by the MIME type detected from the file's own
@@ -138,7 +156,29 @@ return [
 
     'timeline' => [
         'per_page' => 24,
-        'max_per_page' => 60,
+        'max_per_page' => 120,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | What a memory may say
+    |--------------------------------------------------------------------------
+    |
+    | Long enough that nobody writing about their own life runs into them. They
+    | exist because a database column has to be some width and a request body
+    | has to stop somewhere — not to keep anyone brief. The interface shows the
+    | count as it is approached rather than silently refusing at the end.
+    |
+    | Raising any of these means widening the matching column: see the
+    | `widen_memory_text_columns` migration.
+    |
+    */
+
+    'text' => [
+        'title' => 500,
+        'description' => 50_000,
+        'location' => 255,
+        'album' => 190,
     ],
 
 ];

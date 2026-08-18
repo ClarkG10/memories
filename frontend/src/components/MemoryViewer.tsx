@@ -4,6 +4,8 @@ import { useFullscreen } from '../hooks/useFullscreen'
 import { useOverlay } from '../hooks/useOverlay'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
+import { referenceOf } from '../api/client'
+import { ViewerImage } from './ViewerImage'
 import type { Media, Memory } from '../api/types'
 
 interface Props {
@@ -122,6 +124,32 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
     [count],
   )
 
+  /*
+   | Fetch the photographs either side of this one, quietly, while it is being
+   | looked at. Stepping through a memory is a rhythm — press, look, press —
+   | and a spinner between every press breaks it. By the time the arrow is
+   | pressed the next one is usually already in the browser.
+   */
+  /*
+   | Depending on the URLs rather than on the array: `media` is rebuilt on
+   | every render, so an effect keyed on it would fetch the neighbours again
+   | on every keystroke, hover and state change. A string is stable.
+   */
+  const nextSource = previewSource(media[index + 1])
+  const previousSource = previewSource(media[index - 1])
+
+  useEffect(() => {
+    for (const source of [nextSource, previousSource]) {
+      if (source === null) continue
+
+      const image = new Image()
+      // Behind whatever the person is actually waiting for.
+      image.fetchPriority = 'low'
+      image.decoding = 'async'
+      image.src = source
+    }
+  }, [nextSource, previousSource])
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'ArrowRight') step(1)
@@ -239,6 +267,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
               message="We couldn't open this memory just now."
               actionLabel="Try again"
               onAction={() => void query.refetch()}
+              reference={referenceOf(query.error)}
             />
           )}
 
@@ -322,6 +351,16 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
   )
 }
 
+/** The one image worth having ready for a photograph that is coming next. */
+function previewSource(media: Media | undefined): string | null {
+  if (media === undefined) return null
+
+  const source =
+    media.type === 'video' ? media.urls.poster : (media.urls.full ?? media.urls.display)
+
+  return source ?? null
+}
+
 function Stage({
   media,
   title,
@@ -360,13 +399,7 @@ function Stage({
    */
   return (
     <button type="button" className="viewer__surface" onClick={onToggleBare}>
-      <img
-        key={media.id}
-        className="viewer__media"
-        src={media.urls.full ?? media.urls.display}
-        alt={title}
-        decoding="async"
-      />
+      <ViewerImage media={media} alt={title} />
     </button>
   )
 }

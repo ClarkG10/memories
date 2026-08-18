@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import { FieldCount } from './FieldCount'
 import { ApiError } from "../api/client";
-import { useAlbums, useMemory, useUpdateMemory } from "../api/queries";
+import { useAlbums, useArchive, useMemory, useUpdateMemory } from "../api/queries";
 import { useOverlay } from "../hooks/useOverlay";
 import { todayAsInputValue } from "../lib/dates";
+import { DEFAULT_TEXT_LIMITS } from "../api/types";
 /**
  * Loose on purpose: editing is reached both from a timeline card and from the
  * open viewer, and those carry different shapes of the same memory.
@@ -28,6 +30,11 @@ interface Props {
 export function EditDialog({ memory, onClose, onSaved }: Props) {
   const update = useUpdateMemory();
   const albums = useAlbums();
+  const archive = useArchive();
+
+  // Until the archive has answered, the built-in defaults stand in. They match
+  // the server's own defaults, so a field is never narrower than the truth.
+  const limits = archive.data?.text ?? DEFAULT_TEXT_LIMITS;
 
   /*
    | The timeline card carries no description — it is deliberately left out of
@@ -104,10 +111,11 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 className="field__input"
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
-                maxLength={160}
+                maxLength={limits.title}
                 disabled={update.isPending}
                 data-autofocus
               />
+              <FieldCount value={title} limit={limits.title} />
             </label>
 
             <label className="field">
@@ -128,9 +136,10 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 className="field__input"
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
-                maxLength={160}
+                maxLength={limits.location}
                 disabled={update.isPending}
               />
+              <FieldCount value={location} limit={limits.location} />
             </label>
 
             <div className="field">
@@ -142,7 +151,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 className="field__input"
                 value={album}
                 onChange={(event) => setAlbum(event.target.value)}
-                maxLength={80}
+                maxLength={limits.album}
                 list="edit-album-names"
                 aria-describedby="edit-album-hint"
                 disabled={update.isPending}
@@ -163,9 +172,10 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 className="field__textarea"
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
-                maxLength={5000}
+                maxLength={limits.description}
                 disabled={update.isPending || !loadedDescription}
               />
+              <FieldCount value={description} limit={limits.description} />
             </label>
           </div>
 

@@ -1,6 +1,10 @@
 /** Longest edge of the captured frame. Big enough for a retina card, small
  *  enough that it costs nothing to send. */
-const MAX_EDGE = 1280
+/*
+ | Wide enough to stay sharp as the lead image of a memory on a retina laptop,
+ | where the frame is drawn at around 1500 device pixels. 1280 was soft there.
+ */
+const MAX_EDGE = 1920
 
 /** Where to grab from: far enough in to miss a black opening frame. */
 const SEEK_FRACTION = 0.1

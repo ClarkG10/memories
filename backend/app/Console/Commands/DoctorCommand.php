@@ -9,6 +9,7 @@ use App\Models\MemoryMedia;
 use App\Models\UploadSession;
 use App\Services\GoogleDrive\GoogleDriveService;
 use App\Services\MemoryService;
+use App\Services\TimelineQuery;
 use Illuminate\Console\Command;
 use Throwable;
 
@@ -34,6 +35,40 @@ class DoctorCommand extends Command
         $this->line('  Removed, awaiting Drive: '.MemoryMedia::withTrashed()
             ->whereIn('deletion_state', [MemoryMedia::DELETION_DELETING, MemoryMedia::DELETION_FAILED])
             ->count());
+
+        /*
+         | The years, read straight from the database rather than through the
+         | cache the API answers from. "A year is missing from the web app" has
+         | two very different causes — it is not in the database, or it is and
+         | the cached answer predates it — and they are told apart here.
+         */
+        $years = Memory::query()
+            ->selectRaw('YEAR(memory_date) as year, COUNT(*) as total')
+            ->groupBy('year')
+            ->orderByDesc('year')
+            ->get();
+
+        if ($years->isNotEmpty()) {
+            $this->line('  Years (from the database):');
+
+            foreach ($years as $row) {
+                $this->line(sprintf('    %d  %d memor%s', (int) $row->year, (int) $row->total, (int) $row->total === 1 ? 'y' : 'ies'));
+            }
+
+            $cached = collect($this->laravel->make(TimelineQuery::class)->years())
+                ->pluck('year')
+                ->all();
+
+            $missing = $years->pluck('year')->map(fn ($y): int => (int) $y)->diff($cached)->all();
+
+            if ($missing !== []) {
+                $problems++;
+                $this->components->warn(
+                    '  The API is serving a stale year list; missing: '.implode(', ', $missing)
+                    .'. Run `php artisan memories:refresh`.'
+                );
+            }
+        }
 
         $this->newLine();
         $this->components->info('Google Drive');

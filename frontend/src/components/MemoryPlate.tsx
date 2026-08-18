@@ -2,6 +2,7 @@ import { MediaImage } from './MediaImage'
 import { VideoThumb } from './VideoThumb'
 import { MemoryActions } from './MemoryActions'
 import { useReveal } from '../hooks/useReveal'
+import { usePrefetchMemory } from '../api/queries'
 import { formatDayAndMonth } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
 
@@ -33,6 +34,7 @@ export function MemoryPlate({
   onRemove,
 }: Props) {
   const { ref, visible } = useReveal<HTMLElement>()
+  const prefetch = usePrefetchMemory()
 
   // Defensive: a memory with no usable preview is skipped rather than allowed
   // to take the timeline down with it.
@@ -52,6 +54,13 @@ export function MemoryPlate({
       data-visible={visible}
       data-flip={flip}
       data-testid="memory-plate"
+      /*
+       | Pointing at a memory, or reaching it with the keyboard, is as good a
+       | signal as a click that it is about to be opened — and it arrives a
+       | few hundred milliseconds earlier, which is most of the wait.
+       */
+      onPointerEnter={() => prefetch(memory.id, lead?.urls)}
+      onFocus={() => prefetch(memory.id, lead?.urls)}
     >
       <div
         className={

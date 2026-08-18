@@ -21,11 +21,11 @@ class StoreMemoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['required', 'string', 'max:160'],
-            'description' => ['nullable', 'string', 'max:5000'],
+            'title' => ['required', 'string', 'max:'.config('memories.text.title')],
+            'description' => ['nullable', 'string', 'max:'.config('memories.text.description')],
             'memory_date' => ['required', 'date', 'after_or_equal:1900-01-01', 'before_or_equal:tomorrow'],
-            'location' => ['nullable', 'string', 'max:160'],
-            'album' => ['nullable', 'string', 'max:80'],
+            'location' => ['nullable', 'string', 'max:'.config('memories.text.location')],
+            'album' => ['nullable', 'string', 'max:'.config('memories.text.album')],
 
             'uploads' => [
                 'required',

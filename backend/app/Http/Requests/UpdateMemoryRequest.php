@@ -19,11 +19,11 @@ class UpdateMemoryRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'title' => ['sometimes', 'required', 'string', 'max:160'],
-            'description' => ['sometimes', 'nullable', 'string', 'max:5000'],
+            'title' => ['sometimes', 'required', 'string', 'max:'.config('memories.text.title')],
+            'description' => ['sometimes', 'nullable', 'string', 'max:'.config('memories.text.description')],
             'memory_date' => ['sometimes', 'required', 'date', 'after_or_equal:1900-01-01', 'before_or_equal:tomorrow'],
-            'location' => ['sometimes', 'nullable', 'string', 'max:160'],
-            'album' => ['sometimes', 'nullable', 'string', 'max:80'],
+            'location' => ['sometimes', 'nullable', 'string', 'max:'.config('memories.text.location')],
+            'album' => ['sometimes', 'nullable', 'string', 'max:'.config('memories.text.album')],
         ];
     }
 
