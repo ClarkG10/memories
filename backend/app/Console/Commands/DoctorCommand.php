@@ -48,11 +48,34 @@ class DoctorCommand extends Command
             ->orderByDesc('year')
             ->get();
 
-        if ($years->isNotEmpty()) {
+        /*
+         | Deleted memories are counted separately and shown beside the live
+         | ones. "A year is in Google Drive but not in the app" has exactly one
+         | remaining explanation once the query and the cache are ruled out —
+         | the memory was deleted and its files were never collected — and this
+         | is the line that says so instead of leaving it to be deduced.
+         */
+        $deletedByYear = Memory::onlyTrashed()
+            ->selectRaw('YEAR(memory_date) as year, COUNT(*) as total')
+            ->groupBy('year')
+            ->pluck('total', 'year');
+
+        if ($years->isNotEmpty() || $deletedByYear->isNotEmpty()) {
             $this->line('  Years (from the database):');
 
-            foreach ($years as $row) {
-                $this->line(sprintf('    %d  %d memor%s', (int) $row->year, (int) $row->total, (int) $row->total === 1 ? 'y' : 'ies'));
+            $live = $years->pluck('total', 'year');
+
+            foreach ($live->keys()->merge($deletedByYear->keys())->unique()->sortDesc() as $year) {
+                $shown = (int) ($live[$year] ?? 0);
+                $gone = (int) ($deletedByYear[$year] ?? 0);
+
+                $this->line(sprintf(
+                    '    %d  %d memor%s%s',
+                    (int) $year,
+                    $shown,
+                    $shown === 1 ? 'y' : 'ies',
+                    $gone > 0 ? "  ({$gone} deleted, still in Drive until the queue collects them)" : '',
+                ));
             }
 
             $cached = collect($this->laravel->make(TimelineQuery::class)->years())
@@ -134,6 +157,27 @@ class DoctorCommand extends Command
         if ($mediaWithoutMemory > 0) {
             $this->components->warn("  {$mediaWithoutMemory} media row(s) have no memory.");
             $problems++;
+        }
+
+        /*
+         | Files asked to be removed that never were. A handful is normal for a
+         | minute; a pile that does not shrink means nothing is consuming the
+         | queue — and that stops far more than deletions. Warming, which is
+         | what makes a photograph appear instantly the first time, runs there
+         | too and would be silently doing nothing.
+         */
+        $stuck = MemoryMedia::withTrashed()
+            ->where('deletion_state', MemoryMedia::DELETION_DELETING)
+            ->where('deletion_requested_at', '<', now()->subMinutes(15))
+            ->count();
+
+        if ($stuck > 0) {
+            $problems++;
+            $this->components->warn(
+                "  {$stuck} file(s) have been waiting over 15 minutes to be removed from Drive."
+            );
+            $this->line('    Nothing is consuming the queue. On Forge: check the queue worker is running.');
+            $this->line('    Derivative warming runs there too, so photographs will also be slow to appear.');
         }
 
         $this->newLine();

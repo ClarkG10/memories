@@ -163,6 +163,89 @@ export function useUpdateMemory() {
   })
 }
 
+/**
+ * Everything that can change about a memory's photographs, in one act.
+ *
+ * The order matters and is not obvious. Additions go first, so that removing
+ * what is being replaced never trips the rule that a memory must keep at least
+ * one file. Removals come next. The new order is sent last, once the set it
+ * describes is finally settled — an order sent before that names files that
+ * are about to disappear.
+ */
+export function useReviseMedia() {
+  const invalidate = useArchiveInvalidation()
+  const client = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      id,
+      add,
+      remove,
+      order,
+    }: {
+      id: string
+      /** Upload session ids for files already on the server. */
+      add: string[]
+      /** Media ids to let go of. */
+      remove: string[]
+      /**
+       * Every surviving media id, in the order they should appear. New files
+       * are identified by their session id here and swapped for their real
+       * media id once the server has answered.
+       */
+      order: string[]
+    }) => {
+      let memory: Memory | null = null
+
+      if (add.length > 0) {
+        const response = await api.send<{ data: Memory }>(
+          'POST',
+          `/api/memories/${id}/media`,
+          { uploads: add },
+          { 'Idempotency-Key': idempotencyKey() },
+        )
+
+        memory = response.data
+      }
+
+      for (const mediaId of remove) {
+        await api.send('DELETE', `/api/media/${mediaId}`)
+      }
+
+      /*
+       | The new files were named by session id, because that was all the
+       | interface knew about them. The server has now given them real ids, and
+       | they are the ones it appended — in the order they were sent.
+       */
+      const appended = memory
+        ? memory.media.map((item) => item.id).slice(memory.media.length - add.length)
+        : []
+
+      let cursor = 0
+      const settled = order
+        .map((entry) => (add.includes(entry) ? appended[cursor++] : entry))
+        .filter((entry): entry is string => typeof entry === 'string')
+        .filter((entry) => !remove.includes(entry))
+
+      if (settled.length > 1) {
+        const response = await api.send<{ data: Memory }>(
+          'PUT',
+          `/api/memories/${id}/media/order`,
+          { order: settled },
+        )
+
+        memory = response.data
+      }
+
+      // Whatever happened, the memory that is open must be re-read.
+      await client.invalidateQueries({ queryKey: keys.memory(id) })
+
+      return memory
+    },
+    onSuccess: invalidate,
+  })
+}
+
 export function useDeleteMemory() {
   const invalidate = useArchiveInvalidation()
 

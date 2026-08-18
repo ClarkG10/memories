@@ -24,17 +24,29 @@ export function YearNav({ years, selected, onSelect }: Props) {
 
   if (years.length === 0) return null
 
+  /*
+   | "All" is built into the list rather than standing beside it. As a lone
+   | sibling of a mapped array it was a child with no key, which React warns
+   | about and which makes it the one item it cannot match up across a render.
+   */
+  const stops: Array<{ key: string; label: string; year: number | null }> = [
+    { key: 'all', label: 'All', year: null },
+    ...years.map((entry) => ({
+      key: String(entry.year),
+      label: String(entry.year),
+      year: entry.year,
+    })),
+  ]
+
   if (hasRoomForRail) {
     return (
       <nav className="rail" aria-label="Jump to a year">
-        <RailItem label="All" active={selected === null} onSelect={() => onSelect(null)} />
-
-        {years.map((entry) => (
+        {stops.map((stop) => (
           <RailItem
-            key={entry.year}
-            label={String(entry.year)}
-            active={selected === entry.year}
-            onSelect={() => onSelect(entry.year)}
+            key={stop.key}
+            label={stop.label}
+            active={selected === stop.year}
+            onSelect={() => onSelect(stop.year)}
           />
         ))}
       </nav>
@@ -43,24 +55,15 @@ export function YearNav({ years, selected, onSelect }: Props) {
 
   return (
     <nav className="yearstrip" aria-label="Jump to a year">
-      <button
-        type="button"
-        className="yearstrip__item"
-        aria-current={selected === null}
-        onClick={() => onSelect(null)}
-      >
-        All
-      </button>
-
-      {years.map((entry) => (
+      {stops.map((stop) => (
         <button
-          key={entry.year}
+          key={stop.key}
           type="button"
           className="yearstrip__item"
-          aria-current={selected === entry.year}
-          onClick={() => onSelect(entry.year)}
+          aria-current={selected === stop.year}
+          onClick={() => onSelect(stop.year)}
         >
-          {entry.year}
+          {stop.label}
         </button>
       ))}
     </nav>

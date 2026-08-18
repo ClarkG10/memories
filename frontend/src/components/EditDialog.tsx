@@ -1,8 +1,16 @@
-import { useEffect, useState } from "react";
-import { FieldCount } from './FieldCount'
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { FieldCount } from "./FieldCount";
+import { MediaEditor, type EditorItem } from "./MediaEditor";
 import { ApiError } from "../api/client";
-import { useAlbums, useArchive, useMemory, useUpdateMemory } from "../api/queries";
+import {
+  useAlbums,
+  useArchive,
+  useMemory,
+  useReviseMedia,
+  useUpdateMemory,
+} from "../api/queries";
 import { useOverlay } from "../hooks/useOverlay";
+import { useUploadQueue } from "../hooks/useUploadQueue";
 import { todayAsInputValue } from "../lib/dates";
 import { DEFAULT_TEXT_LIMITS } from "../api/types";
 /**
@@ -24,13 +32,22 @@ interface Props {
 }
 
 /**
- * Changing what a memory says. The photographs are not touched here — those
- * are added and removed from the memory itself.
+ * Changing a memory: what it says, and which photographs it holds.
+ *
+ * Both in one place and both applied by one Save, because they are one act —
+ * "this is wrong, let me fix it" — and making someone visit two screens to
+ * correct one mistake is how a correction stops being worth making.
+ *
+ * Nothing destructive happens while the dialog is open. A removed photograph
+ * is a mark on a tile until Save; closing without saving leaves the memory
+ * exactly as it was found.
  */
 export function EditDialog({ memory, onClose, onSaved }: Props) {
   const update = useUpdateMemory();
+  const revise = useReviseMedia();
   const albums = useAlbums();
   const archive = useArchive();
+  const queue = useUploadQueue(archive.data);
 
   // Until the archive has answered, the built-in defaults stand in. They match
   // the server's own defaults, so a field is never narrower than the truth.
@@ -43,7 +60,8 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
    */
   const full = useMemory(memory.id);
   const containerRef = useOverlay<HTMLFormElement>(true, () => {
-    if (!update.isPending) onClose();
+    // Never close mid-upload: the files would be left half-sent.
+    if (!update.isPending && !revise.isPending && !queue.isUploading) onClose();
   });
 
   const [title, setTitle] = useState(memory.title);
@@ -54,6 +72,85 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
   const [loadedDescription, setLoadedDescription] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+   | The arrangement being worked on. Holds a media id for a photograph already
+   | in the memory and a queue key for one just chosen; both are resolved to
+   | real ids at the moment of saving.
+   */
+  const [order, setOrder] = useState<string[] | null>(null);
+  const [removing, setRemoving] = useState<ReadonlySet<string>>(new Set());
+
+  // Adopt the memory's own order once, when it arrives.
+  useEffect(() => {
+    if (full.data && order === null) {
+      setOrder(full.data.media.map((item) => item.id));
+    }
+  }, [full.data, order]);
+
+  /*
+   | New files are appended as they are chosen, so the strip always shows every
+   | place in the memory — existing and pending — in one sequence that can be
+   | rearranged as a whole.
+   */
+  useEffect(() => {
+    setOrder((current) => {
+      if (current === null) return current;
+
+      const missing = queue.files
+        .map((file) => file.id)
+        .filter((id) => !current.includes(id));
+
+      return missing.length > 0 ? [...current, ...missing] : current;
+    });
+  }, [queue.files]);
+
+  const items = useMemo<EditorItem[]>(() => {
+    if (order === null) return [];
+
+    const byId = new Map((full.data?.media ?? []).map((m) => [m.id, m]));
+    const byKey = new Map(queue.files.map((f) => [f.id, f]));
+
+    return order
+      .map((key): EditorItem | null => {
+        const media = byId.get(key);
+        if (media) return { kind: "existing", key, media };
+
+        const file = byKey.get(key);
+        if (file) return { kind: "new", key, file };
+
+        return null;
+      })
+      .filter((item): item is EditorItem => item !== null);
+  }, [order, full.data, queue.files]);
+
+  const kept = items.filter((item) => !removing.has(item.key));
+
+  const toggleRemove = useCallback((key: string) => {
+    setRemoving((current) => {
+      const next = new Set(current);
+
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+
+      return next;
+    });
+  }, []);
+
+  const moveTo = useCallback((key: string, to: number) => {
+    setOrder((current) => {
+      if (current === null) return current;
+
+      const from = current.indexOf(key);
+      if (from < 0) return current;
+
+      const next = [...current];
+      next.splice(from, 1);
+      next.splice(to, 0, key);
+
+      return next;
+    });
+  }, []);
+
   // Filled in once, when the memory arrives; never again, or it would wipe
   // out whatever has been typed since.
   useEffect(() => {
@@ -63,11 +160,55 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
     }
   }, [full.data, loadedDescription]);
 
+  const originalOrder = (full.data?.media ?? []).map((item) => item.id);
+  const orderChanged =
+    order !== null &&
+    JSON.stringify(order.filter((key) => !removing.has(key))) !==
+      JSON.stringify(originalOrder);
+
+  const mediaChanged =
+    removing.size > 0 || queue.files.length > 0 || orderChanged;
+
+  const busy = update.isPending || revise.isPending || queue.isUploading;
+
   const save = async (event?: React.FormEvent) => {
     event?.preventDefault();
     setError(null);
 
+    if (kept.length === 0) {
+      setError("A memory has to keep at least one photo or video.");
+
+      return;
+    }
+
     try {
+      /*
+       | The photographs first. If this fails there is something to say about
+       | it, and the words are still on screen to try again with — whereas
+       | saving the words first and then failing here would leave the memory
+       | half-changed with no sign of which half.
+       */
+      if (mediaChanged) {
+        // Only now do the files actually go up; choosing them cost nothing.
+        const sessions = queue.files.length > 0 ? await queue.uploadAll() : [];
+
+        const sessionFor = new Map(
+          queue.files.map((file, index) => [file.id, sessions[index]]),
+        );
+
+        await revise.mutateAsync({
+          id: memory.id,
+          add: queue.files
+            .filter((file) => !removing.has(file.id))
+            .map((file) => sessionFor.get(file.id))
+            .filter((id): id is string => typeof id === "string"),
+          remove: [...removing].filter((key) => originalOrder.includes(key)),
+          order: (order ?? [])
+            .filter((key) => !removing.has(key))
+            .map((key) => sessionFor.get(key) ?? key),
+        });
+      }
+
       await update.mutateAsync({
         id: memory.id,
         title: title.trim(),
@@ -77,6 +218,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
         description: description.trim() || null,
       });
 
+      queue.reset();
       onSaved();
     } catch (caught) {
       setError(
@@ -104,6 +246,25 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
         </h2>
 
         <div className="dialog__scroll">
+          {order !== null && (
+            <MediaEditor
+              items={items}
+              removing={removing}
+              onToggleRemove={toggleRemove}
+              onMove={moveTo}
+              onAdd={queue.add}
+              disabled={busy}
+            />
+          )}
+
+          {queue.rejections.length > 0 && (
+            <div className="compose__rejections" role="alert">
+              {queue.rejections.map((message) => (
+                <span key={message}>{message}</span>
+              ))}
+            </div>
+          )}
+
           <div className="dialog__fields">
             <label className="field">
               <span className="field__label">Title</span>
@@ -112,7 +273,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 value={title}
                 onChange={(event) => setTitle(event.target.value)}
                 maxLength={limits.title}
-                disabled={update.isPending}
+                disabled={busy}
                 data-autofocus
               />
               <FieldCount value={title} limit={limits.title} />
@@ -126,7 +287,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 value={date}
                 max={todayAsInputValue()}
                 onChange={(event) => setDate(event.target.value)}
-                disabled={update.isPending}
+                disabled={busy}
               />
             </label>
 
@@ -137,7 +298,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 value={location}
                 onChange={(event) => setLocation(event.target.value)}
                 maxLength={limits.location}
-                disabled={update.isPending}
+                disabled={busy}
               />
               <FieldCount value={location} limit={limits.location} />
             </label>
@@ -154,7 +315,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 maxLength={limits.album}
                 list="edit-album-names"
                 aria-describedby="edit-album-hint"
-                disabled={update.isPending}
+                disabled={busy}
               />
               <datalist id="edit-album-names">
                 {(albums.data ?? []).map((name) => (
@@ -173,7 +334,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
                 maxLength={limits.description}
-                disabled={update.isPending || !loadedDescription}
+                disabled={busy || !loadedDescription}
               />
               <FieldCount value={description} limit={limits.description} />
             </label>
@@ -191,7 +352,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
             type="button"
             className="button button--quiet"
             onClick={onClose}
-            disabled={update.isPending}
+            disabled={busy}
           >
             Cancel
           </button>
@@ -199,12 +360,21 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
           <button
             type="submit"
             className="button button--primary"
-            disabled={update.isPending || title.trim() === ""}
+            disabled={busy || title.trim() === "" || kept.length === 0}
           >
-            {update.isPending ? "Saving…" : "Save"}
+            {saveLabel(update.isPending, revise.isPending, queue.isUploading)}
           </button>
         </div>
       </form>
     </div>
   );
+}
+
+/** What the button says, so a long upload does not just read "Saving…". */
+function saveLabel(saving: boolean, revising: boolean, uploading: boolean): string {
+  if (uploading) return "Uploading…";
+  if (revising) return "Arranging…";
+  if (saving) return "Saving…";
+
+  return "Save";
 }

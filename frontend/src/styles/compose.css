@@ -278,3 +278,198 @@
   color: var(--ink-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* --------------------------------------------------------------------------
+ * Rearranging a memory's photographs
+ *
+ * A contact sheet you can pick up and move around. The first tile is the one
+ * the timeline shows, and it says so — a rule you cannot see is a rule nobody
+ * can use.
+ * ----------------------------------------------------------------------- */
+
+.mediaedit {
+  margin-bottom: var(--space-5);
+}
+
+.mediaedit__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.mediaedit__count {
+  font-size: 0.75rem;
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.mediaedit__strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
+  gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.mediaedit__tile {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--paper-sunk);
+  cursor: grab;
+  transition:
+    opacity var(--duration-quick) var(--ease),
+    box-shadow var(--duration-quick) var(--ease);
+}
+
+.mediaedit__tile[data-dragging='true'] {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+/* The one the timeline will show. */
+.mediaedit__tile[data-lead='true'] {
+  box-shadow: 0 0 0 2px var(--blue-deep);
+}
+
+/*
+ | Marked, not gone. It stays in place and stays legible, because the way back
+ | from a mis-click has to be visible on the thing that was mis-clicked.
+ */
+.mediaedit__tile[data-removing='true'] {
+  cursor: default;
+}
+
+.mediaedit__tile[data-removing='true'] .mediaedit__image {
+  opacity: 0.28;
+  filter: grayscale(1);
+}
+
+.mediaedit__image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.mediaedit__image--none {
+  background: var(--paper-tint);
+}
+
+.mediaedit__lead,
+.mediaedit__mark {
+  position: absolute;
+  top: var(--space-1);
+  left: var(--space-1);
+  padding: 2px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.625rem;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.mediaedit__lead {
+  background: var(--blue-deep);
+  color: #fff;
+}
+
+.mediaedit__mark {
+  background: rgba(9, 14, 19, 0.72);
+  color: #fff;
+}
+
+.mediaedit__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.35);
+}
+
+.mediaedit__progress span {
+  display: block;
+  height: 100%;
+  background: var(--blue-deep);
+  transition: width var(--duration-quick) linear;
+}
+
+.mediaedit__tools {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  display: flex;
+  gap: 2px;
+}
+
+/*
+ | Always there, never on hover. A phone has no hover and a keyboard has no
+ | drag, so these are the only way most people will ever move anything.
+ */
+.mediaedit__tool {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--ink);
+  font-size: 0.9rem;
+  line-height: 1;
+  box-shadow: var(--shadow-soft);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    opacity var(--duration-quick) var(--ease);
+}
+
+.mediaedit__tool:hover:not(:disabled) {
+  background: #fff;
+}
+
+.mediaedit__tool:disabled {
+  opacity: 0.35;
+}
+
+.mediaedit__tool--remove {
+  color: var(--blue-deeper);
+}
+
+.mediaedit__add {
+  display: grid;
+  aspect-ratio: 1;
+}
+
+.mediaedit__addbutton {
+  display: grid;
+  place-content: center;
+  gap: var(--space-1);
+  justify-items: center;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius);
+  color: var(--ink-muted);
+  font-size: 0.75rem;
+  transition:
+    border-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.mediaedit__addbutton span {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+
+.mediaedit__addbutton:hover:not(:disabled) {
+  border-color: var(--blue-deep);
+  color: var(--blue-deep);
+}
+
+.mediaedit__warning {
+  margin-top: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--blue-deeper);
+}

@@ -80,6 +80,8 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
         Route::post('memories/{memory}/media', [MemoryMediaController::class, 'store'])
             ->name('memories.media.store');
+        Route::put('memories/{memory}/media/order', [MemoryMediaController::class, 'order'])
+            ->name('memories.media.order');
         Route::delete('media/{media}', [MemoryMediaController::class, 'destroy'])->name('media.destroy');
     });
 

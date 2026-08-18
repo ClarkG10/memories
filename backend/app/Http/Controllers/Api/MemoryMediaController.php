@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AttachMediaRequest;
+use App\Http\Requests\ReorderMediaRequest;
 use App\Http\Resources\MemoryResource;
 use App\Models\Memory;
 use App\Models\MemoryMedia;
@@ -42,6 +43,20 @@ class MemoryMediaController extends Controller
                 );
             },
         );
+    }
+
+    /**
+     * Put a memory's files in a given order.
+     *
+     * Not idempotency-keyed: sending the same order twice leaves the memory in
+     * exactly the state it was already in, which is the property the key would
+     * have been protecting.
+     */
+    public function order(ReorderMediaRequest $request, Memory $memory): JsonResponse
+    {
+        $updated = $this->memories->reorderMedia($memory, $request->order());
+
+        return response()->json(['data' => (new MemoryResource($updated))->toArray($request)]);
     }
 
     /**

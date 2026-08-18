@@ -21,6 +21,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 /**
@@ -204,8 +205,76 @@ class MemoryService
     /**
      * Remove a single file from a memory that otherwise stays.
      */
+    /**
+     * Put a memory's files in a given order.
+     *
+     * The order decides which photograph leads the memory in the timeline and
+     * which order they are stepped through in the viewer, so it is worth being
+     * able to change without re-uploading anything.
+     *
+     * The list must name every file exactly once. A partial list would leave
+     * the rest at whatever position they held, which is how two files end up
+     * claiming the same one and the order becomes whatever the database felt
+     * like returning.
+     *
+     * @param  array<int, string>  $uuids
+     *
+     * @throws ValidationException
+     */
+    public function reorderMedia(Memory $memory, array $uuids): Memory
+    {
+        $current = $memory->media()->orderBy('sort_order')->pluck('uuid')->all();
+
+        $given = array_values(array_unique($uuids));
+
+        if (count($given) !== count($uuids)) {
+            throw ValidationException::withMessages([
+                'order' => ['That order names the same file twice.'],
+            ]);
+        }
+
+        if (array_diff($current, $given) !== [] || array_diff($given, $current) !== []) {
+            throw ValidationException::withMessages([
+                'order' => ['That order does not match the files in this memory. Reload and try again.'],
+            ]);
+        }
+
+        DB::transaction(function () use ($memory, $given): void {
+            foreach ($given as $position => $uuid) {
+                $memory->media()
+                    ->where('uuid', $uuid)
+                    ->update(['sort_order' => $position]);
+            }
+        });
+
+        $this->cache->flush();
+
+        return $memory->fresh(['media']);
+    }
+
+    /**
+     * Remove one file, leaving the rest of the memory intact.
+     *
+     * @throws ValidationException when it is the only one left
+     */
     public function deleteMedia(MemoryMedia $media): void
     {
+        /*
+         | A memory with no photographs is not a memory: it renders as nothing
+         | in the timeline, while still existing in the database and counting
+         | towards the year. Removing the last one is almost always someone
+         | meaning to delete the memory itself, so that is what they are told
+         | to do — and that path asks them to type the title first, which this
+         | one deliberately does not.
+         */
+        $memory = $media->memory;
+
+        if ($memory !== null && $memory->media()->count() <= 1) {
+            throw ValidationException::withMessages([
+                'media' => ['A memory has to keep at least one photo or video. Delete the whole memory instead.'],
+            ]);
+        }
+
         DB::transaction(function () use ($media): void {
             $media->forceFill([
                 'deletion_state' => MemoryMedia::DELETION_DELETING,
@@ -556,20 +625,30 @@ class MemoryService
              | the media proxy already looks for a poster. That makes a video
              | show a real still the moment it is saved, rather than waiting
              | for Drive to finish generating one of its own.
+             |
+             | Both this and the warming below are deferred until the
+             | transaction commits. They are disk writes and a Redis round trip
+             | per file, and running them inside the transaction holds it open
+             | for the length of all of them — widening the window in which the
+             | process can die with the files already in Drive and no rows to
+             | show for them, which is the one failure this whole path exists
+             | to avoid.
              */
             $poster = $this->uploads->posterBytes($session);
 
-            if ($poster !== null) {
-                $this->derivatives->storePoster($media, $poster);
-            }
+            DB::afterCommit(function () use ($media, $poster): void {
+                if ($poster !== null) {
+                    $this->derivatives->storePoster($media, $poster);
+                }
 
-            /*
-             | Build the renditions now, on the queue, rather than when someone
-             | first looks. The person who just saved this memory is about to
-             | be the first to open it, and making them wait on a Drive
-             | download and three resizes is the whole of the lag they feel.
-             */
-            WarmDerivatives::dispatch($media->id);
+                /*
+                 | Build the renditions on the queue rather than when someone
+                 | first looks. The person who just saved this memory is about
+                 | to be the first to open it, and making them wait on a Drive
+                 | download and three resizes is the lag they feel.
+                 */
+                WarmDerivatives::dispatch($media->id);
+            });
         }
     }
 
