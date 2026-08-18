@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Memory;
+use App\Services\GoogleDrive\GoogleDriveException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -111,5 +112,79 @@ class AlbumTest extends TestCase
         $this->save(['album' => 'Japan'])->assertCreated();
 
         $this->getJson('/api/albums')->assertOk()->assertExactJson(['data' => ['Japan']]);
+    }
+
+    public function test_moving_a_memory_into_an_album_moves_its_files_in_drive(): void
+    {
+        $this->signedInOwner();
+
+        $this->save()->assertCreated();
+
+        $memory = Memory::first();
+        $media = $memory->media()->first();
+
+        $this->assertSame('folder-image-2026-08', $media->drive_folder_id);
+
+        $this->patchJson("/api/memories/{$memory->uuid}", ['album' => 'Our Wedding'])->assertOk();
+
+        /*
+         | The folder is derived from the album, so the label alone is not
+         | enough — leaving the file where it was would mean the archive says
+         | one thing and the Drive folder tree says another.
+         */
+        $this->assertSame('folder-album-our-wedding', $this->drive->moved[$media->drive_file_id] ?? null);
+        $this->assertSame('folder-album-our-wedding', $media->fresh()->drive_folder_id);
+    }
+
+    public function test_changing_the_date_refiles_a_memory_that_has_no_album(): void
+    {
+        $this->signedInOwner();
+
+        $this->save()->assertCreated();
+
+        $memory = Memory::first();
+        $media = $memory->media()->first();
+
+        $this->patchJson("/api/memories/{$memory->uuid}", ['memory_date' => '2024-03-02'])->assertOk();
+
+        $this->assertSame('folder-image-2024-03', $media->fresh()->drive_folder_id);
+    }
+
+    public function test_editing_something_else_leaves_the_files_alone(): void
+    {
+        $this->signedInOwner();
+
+        $this->save(['album' => 'Japan'])->assertCreated();
+
+        $memory = Memory::first();
+
+        $this->patchJson("/api/memories/{$memory->uuid}", ['title' => 'A Better Title'])->assertOk();
+
+        // Nothing about where it belongs changed, so nothing moves.
+        $this->assertSame([], $this->drive->moved);
+    }
+
+    public function test_a_drive_that_will_not_move_a_file_does_not_fail_the_edit(): void
+    {
+        $this->signedInOwner();
+
+        $this->save()->assertCreated();
+        $memory = Memory::first();
+
+        $this->drive->moveException = new GoogleDriveException(
+            'Drive is unavailable.',
+            503,
+        );
+
+        /*
+         | Every lookup in this archive is by Drive id, never by folder, so a
+         | failed move is untidy rather than lost — and must not turn a
+         | successful edit into an error for the person who made it.
+         */
+        $this->patchJson("/api/memories/{$memory->uuid}", ['album' => 'Japan'])
+            ->assertOk()
+            ->assertJsonPath('data.album', 'Japan');
+
+        $this->assertSame('folder-image-2026-08', $memory->media()->first()->drive_folder_id);
     }
 }

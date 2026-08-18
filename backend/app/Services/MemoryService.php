@@ -113,13 +113,56 @@ class MemoryService
      */
     public function update(Memory $memory, array $attributes): Memory
     {
+        $wasFiledUnder = [$memory->album, $memory->memory_date->toDateString()];
+
         $memory->fill($attributes)->save();
 
         $this->cache->flush();
 
+        // Where a file lives in Drive is derived from the album and the date,
+        // so changing either has to move the files to match. Otherwise the
+        // archive says one thing and the folder tree says another.
+        if ($wasFiledUnder !== [$memory->album, $memory->memory_date->toDateString()]) {
+            $this->refile($memory);
+        }
+
         Log::info('Memory updated.', ['memory_uuid' => $memory->uuid]);
 
         return $memory->fresh(['media']);
+    }
+
+    /**
+     * Put this memory's files where its album and date now say they belong.
+     *
+     * Best effort by design. Nothing in the archive depends on a file's folder
+     * — every lookup is by Drive id — so a move that fails is untidy, never
+     * lost, and must not turn a successful edit into an error for the person
+     * who made it.
+     */
+    private function refile(Memory $memory): void
+    {
+        foreach ($memory->media()->where('deletion_state', MemoryMedia::DELETION_ACTIVE)->get() as $media) {
+            try {
+                $target = $this->drive->folderForMedia(
+                    (string) $media->type,
+                    $memory->memory_date,
+                    $memory->album,
+                );
+
+                if ($target === $media->drive_folder_id) {
+                    continue;
+                }
+
+                $this->drive->moveFile($media->drive_file_id, $target);
+
+                $media->forceFill(['drive_folder_id' => $target])->save();
+            } catch (Throwable $e) {
+                Log::warning('Could not refile a memory in Drive; the file stays where it was.', [
+                    'media_uuid' => $media->uuid,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

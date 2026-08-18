@@ -31,6 +31,9 @@ class FakeGoogleDrive extends GoogleDriveService
     /** @var array<int, string> */
     public array $deleted = [];
 
+    /** @var array<string, string> fileId => folder it was moved into */
+    public array $moved = [];
+
     /** @var array<int, string> */
     public array $uploadedNames = [];
 
@@ -43,6 +46,9 @@ class FakeGoogleDrive extends GoogleDriveService
 
     /** Simulates Drive being unreachable when an original is fetched back. */
     public ?GoogleDriveException $downloadException = null;
+
+    /** Simulates Drive refusing to move a file into another folder. */
+    public ?GoogleDriveException $moveException = null;
 
     public bool $configured = true;
 
@@ -103,6 +109,19 @@ class FakeGoogleDrive extends GoogleDriveService
 
         unset($this->files[$fileId]);
         $this->deleted[] = $fileId;
+    }
+
+    public function moveFile(string $fileId, string $folderId): void
+    {
+        if ($this->moveException !== null) {
+            throw $this->moveException;
+        }
+
+        $this->moved[$fileId] = $folderId;
+
+        if (isset($this->files[$fileId])) {
+            $this->files[$fileId]['folder'] = $folderId;
+        }
     }
 
     public function getFile(string $fileId): ?DriveFile

@@ -241,6 +241,42 @@ class GoogleDriveService
     }
 
     /**
+     * Move a file into a different folder.
+     *
+     * Drive has no notion of a path — a file simply belongs to one or more
+     * parents — so moving is detaching from the old parent and attaching to
+     * the new one in a single call.
+     *
+     * @throws GoogleDriveException
+     */
+    public function moveFile(string $fileId, string $folderId): void
+    {
+        try {
+            $current = $this->factory->drive()->files->get($fileId, [
+                'fields' => 'parents',
+                'supportsAllDrives' => true,
+            ]);
+
+            $parents = $current->getParents() ?? [];
+
+            if (in_array($folderId, $parents, true) && count($parents) === 1) {
+                return;
+            }
+
+            $this->factory->drive()->files->update($fileId, new GoogleDriveFile, [
+                'addParents' => $folderId,
+                'removeParents' => implode(',', $parents),
+                'fields' => 'id,parents',
+                'supportsAllDrives' => true,
+            ]);
+
+            Log::info('Drive file moved.', ['drive_file_id' => $fileId, 'folder' => $folderId]);
+        } catch (Throwable $e) {
+            throw GoogleDriveException::from($e, "Moving Drive file {$fileId} failed");
+        }
+    }
+
+    /**
      * Fetch an arbitrary Google-hosted URL with the archive's credentials
      * attached — specifically the thumbnail links returned by the Drive API,
      * which are not part of the REST surface but still require authorisation.

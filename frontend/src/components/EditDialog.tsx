@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { ApiError } from '../api/client'
-import { useUpdateMemory } from '../api/queries'
+import { useAlbums, useMemory, useUpdateMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
 import { todayAsInputValue } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
@@ -17,6 +17,14 @@ interface Props {
  */
 export function EditDialog({ memory, onClose, onSaved }: Props) {
   const update = useUpdateMemory()
+  const albums = useAlbums()
+
+  /*
+   | The timeline card carries no description — it is deliberately left out of
+   | that payload — so the full memory is fetched to edit it. Until it arrives
+   | the field simply has nothing in it.
+   */
+  const full = useMemory(memory.id)
   const containerRef = useOverlay(true, () => {
     if (!update.isPending) onClose()
   })
@@ -24,7 +32,19 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
   const [title, setTitle] = useState(memory.title)
   const [date, setDate] = useState(memory.memory_date)
   const [location, setLocation] = useState(memory.location ?? '')
+  const [album, setAlbum] = useState(memory.album ?? '')
+  const [description, setDescription] = useState('')
+  const [loadedDescription, setLoadedDescription] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  // Filled in once, when the memory arrives; never again, or it would wipe
+  // out whatever has been typed since.
+  useEffect(() => {
+    if (full.data && !loadedDescription) {
+      setDescription(full.data.description ?? '')
+      setLoadedDescription(true)
+    }
+  }, [full.data, loadedDescription])
 
   const save = async () => {
     setError(null)
@@ -35,6 +55,8 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
         title: title.trim(),
         memory_date: date,
         location: location.trim() || null,
+        album: album.trim() || null,
+        description: description.trim() || null,
       })
 
       onSaved()
@@ -92,6 +114,41 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
               onChange={(event) => setLocation(event.target.value)}
               maxLength={160}
               disabled={update.isPending}
+            />
+          </label>
+
+          <div className="field">
+            <label className="field__label" htmlFor="edit-album">
+              Album (optional)
+            </label>
+            <input
+              id="edit-album"
+              className="field__input"
+              value={album}
+              onChange={(event) => setAlbum(event.target.value)}
+              maxLength={80}
+              list="edit-album-names"
+              aria-describedby="edit-album-hint"
+              disabled={update.isPending}
+            />
+            <datalist id="edit-album-names">
+              {(albums.data ?? []).map((name) => (
+                <option key={name} value={name} />
+              ))}
+            </datalist>
+            <span className="field__hint" id="edit-album-hint">
+              Changing this moves the files in Google Drive too.
+            </span>
+          </div>
+
+          <label className="field">
+            <span className="field__label">A few words (optional)</span>
+            <textarea
+              className="field__textarea"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              maxLength={5000}
+              disabled={update.isPending || !loadedDescription}
             />
           </label>
         </div>
