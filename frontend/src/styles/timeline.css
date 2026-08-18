@@ -243,7 +243,16 @@
 @media (min-width: 900px) {
   .plate__cluster {
     grid-template-columns: minmax(0, 7fr) minmax(0, 3fr);
-    align-items: start;
+
+    /*
+     | Stretch, not start. The lead sets the height of the block and the
+     | companions divide it between them, so the two columns end level.
+     |
+     | Letting each keep its own height meant a landscape lead beside two
+     | portrait companions left a void the size of a photograph down the left
+     | of the page — the layout drawing attention to nothing at all.
+     */
+    align-items: stretch;
   }
 
   /* Alternating the side gives the column a rhythm without any decoration. */
@@ -265,6 +274,20 @@
 @media (min-width: 900px) {
   .plate__companions {
     grid-template-columns: minmax(0, 1fr);
+    /* Equal shares of the lead's height, however many there are. */
+    grid-auto-rows: minmax(0, 1fr);
+  }
+
+  /*
+   | The companion fills its share exactly, so its own proportions no longer
+   | decide the height of the block. Absolutely positioned because the
+   | intrinsic aspect ratio would otherwise win and reintroduce the gap.
+   */
+  .plate__companion .media {
+    position: absolute;
+    inset: 0;
+    height: 100%;
+    aspect-ratio: auto;
   }
 }
 

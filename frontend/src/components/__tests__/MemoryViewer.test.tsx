@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import {
   aMemory,
   aTimelineMemory,
@@ -174,3 +174,28 @@ describe('opening a memory', () => {
     expect(await screen.findByText("We couldn't open this memory just now.")).toBeInTheDocument()
   })
 })
+
+describe('filling the screen', () => {
+    it('offers a way to fill the screen', async () => {
+    mockApi(baseHandlers())
+
+    // jsdom has no Fullscreen API, so stand one in.
+    const request = vi.fn().mockResolvedValue(undefined)
+    Object.defineProperty(document, 'fullscreenEnabled', { value: true, configurable: true })
+    Object.defineProperty(document, 'fullscreenElement', { value: null, configurable: true })
+    Element.prototype.requestFullscreen = request
+
+    renderArchive('/m/memory-1')
+
+    await screen.findByRole('dialog')
+
+    /*
+     | The viewer already fills the window, but the browser's own tabs and
+     | address bar still take a third of a laptop screen — worth reclaiming
+     | for a photograph.
+     */
+    await userEvent.click(screen.getByRole('button', { name: 'View full screen' }))
+
+    expect(request).toHaveBeenCalled()
+  })
+  })

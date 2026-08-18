@@ -67,6 +67,23 @@
   color: var(--viewer-ink);
 }
 
+.viewer__icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  color: var(--viewer-ink-soft);
+  transition:
+    background-color var(--duration-quick) var(--ease),
+    color var(--duration-quick) var(--ease);
+}
+
+.viewer__icon:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--viewer-ink);
+}
+
 .viewer__close {
   display: grid;
   place-items: center;

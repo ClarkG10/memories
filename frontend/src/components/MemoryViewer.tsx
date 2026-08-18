@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMemory } from '../api/queries'
+import { useFullscreen } from '../hooks/useFullscreen'
 import { useOverlay } from '../hooks/useOverlay'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
@@ -28,6 +29,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
   const query = useMemory(memoryId)
   const [index, setIndex] = useState(initialIndex)
   const containerRef = useOverlay(true, onClose)
+  const { isFullscreen, toggle: toggleFullscreen, supported: canGoFullscreen } = useFullscreen(containerRef)
   const touchStart = useRef<{ x: number; y: number } | null>(null)
 
   const media = query.data?.media ?? []
@@ -106,6 +108,18 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
             | is actually noticed — while looking at the memory — and closing
             | the viewer to go and find the card again is a poor answer to it.
           */}
+          {canGoFullscreen && (
+            <button
+              type="button"
+              className="viewer__icon"
+              onClick={toggleFullscreen}
+              aria-label={isFullscreen ? 'Leave full screen' : 'View full screen'}
+              title={isFullscreen ? 'Leave full screen' : 'View full screen'}
+            >
+              {isFullscreen ? <ExitFullscreenIcon /> : <FullscreenIcon />}
+            </button>
+          )}
+
           {canManage && query.data && (
             <button
               type="button"
@@ -241,6 +255,36 @@ function Stage({ media, title }: { media: Media; title: string }) {
       alt={title}
       decoding="async"
     />
+  )
+}
+
+/** Four corners opening outwards. */
+function FullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none">
+      <path
+        d="M9 4H4v5M15 4h5v5M15 20h5v-5M9 20H4v-5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+/** The same four corners, folding back in. */
+function ExitFullscreenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" fill="none">
+      <path
+        d="M4 9h5V4M20 9h-5V4M20 15h-5v5M4 15h5v5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
   )
 }
 
