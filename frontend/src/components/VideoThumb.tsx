@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { formatDuration } from '../lib/dates'
 import type { Media } from '../api/types'
 
@@ -11,20 +11,32 @@ interface Props {
 /**
  * How a video announces itself in the timeline.
  *
- * Drive generates its thumbnail a little after the upload finishes, so the
- * poster is genuinely absent sometimes. Rather than a broken image or a grey
- * box, the fallback is a quiet wash of the archive's own blue — it still reads
- * as a video, just one that is still settling in.
+ * A still frame, so a video can be recognised before it is played. Drive
+ * generates one only after it has finished processing the upload, so it can
+ * legitimately be missing for a minute and then appear — hence the retries.
+ * Failing that, the fallback is a quiet wash of the archive's own blue: it
+ * still reads as a video, just one still settling in.
  */
 export function VideoThumb({ media, alt, className }: Props) {
-  /*
-   | Google generates a video's thumbnail only after it has finished processing
-   | the upload, so a poster can legitimately be missing for a minute and then
-   | appear. Giving up after one miss left the card blank until the whole page
-   | was reloaded, which is the one thing someone will not think to do.
-   */
   const [attempt, setAttempt] = useState(0)
   const [gaveUp, setGaveUp] = useState(false)
+
+  /*
+   | The poster is transparent until this says otherwise, exactly as a
+   | photograph is, so it fades in over the blur rather than snapping on.
+   | Forgetting to set it is why every video poster loaded correctly and then
+   | rendered completely invisible.
+   */
+  const [loaded, setLoaded] = useState(false)
+  const imageRef = useRef<HTMLImageElement | null>(null)
+
+  const showPoster = Boolean(media.urls.poster) && !gaveUp
+
+  useEffect(() => {
+    // A poster already in the browser's cache can finish before React attaches
+    // its onLoad, which would leave it hidden for good.
+    if (imageRef.current?.complete && imageRef.current.naturalWidth > 0) setLoaded(true)
+  }, [media.urls.poster, attempt])
 
   useEffect(() => {
     if (attempt === 0 || gaveUp) return
@@ -43,12 +55,11 @@ export function VideoThumb({ media, alt, className }: Props) {
     return () => window.clearTimeout(timer)
   }, [attempt, gaveUp])
 
-  const showPoster = Boolean(media.urls.poster) && !gaveUp
-
   return (
     <div
       className={`media media--video${className ? ` ${className}` : ''}`}
       style={{ aspectRatio: media.aspect_ratio ?? 16 / 9 }}
+      data-loaded={loaded}
     >
       {media.placeholder && (
         <img className="media__placeholder" src={media.placeholder} alt="" aria-hidden="true" />
@@ -56,12 +67,14 @@ export function VideoThumb({ media, alt, className }: Props) {
 
       {showPoster ? (
         <img
+          ref={imageRef}
           className="media__image"
-          // The attempt number busts the browser's cache of the 404.
+          // The attempt number busts the browser's cache of a 404.
           src={attempt === 0 ? media.urls.poster : `${media.urls.poster}?retry=${attempt}`}
           alt={alt}
           loading="lazy"
           decoding="async"
+          onLoad={() => setLoaded(true)}
           onError={() => setAttempt((n) => n + 1)}
         />
       ) : (

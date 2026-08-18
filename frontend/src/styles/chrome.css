@@ -136,13 +136,21 @@
  * Dialogs — used by sign-in and by the removal confirmation
  * ----------------------------------------------------------------------- */
 
+/*
+ | Scrollable in its own right. The dialog below caps its height and scrolls
+ | internally, but if anything ever outgrows that anyway, the way to the
+ | buttons must not be a dead end.
+ */
 .scrim {
   position: fixed;
   inset: 0;
   z-index: var(--z-dialog);
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: var(--space-4);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   background: rgba(13, 19, 25, 0.28);
   backdrop-filter: blur(6px);
   animation: fade-in var(--duration) var(--ease);
@@ -154,14 +162,34 @@
   }
 }
 
+/*
+ | A column that never outgrows the screen: the heading and the buttons stay
+ | put, and only the middle scrolls. A dialog taller than the window would
+ | otherwise push its own Save button off the bottom, with no way to reach it —
+ | which is the whole dialog broken, not a cosmetic problem.
+ */
 .dialog {
+  display: flex;
+  flex-direction: column;
   width: 100%;
   max-width: 26rem;
+  max-height: calc(100dvh - var(--space-6));
   padding: var(--space-6);
   background: var(--paper-raised);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lift);
   animation: dialog-in var(--duration) var(--ease-out-soft);
+}
+
+/* The part that gives way. Negative margins let the scrollbar sit at the
+   dialog's edge rather than inset awkwardly from the padding. */
+.dialog__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin-inline: calc(var(--space-6) * -1);
+  padding-inline: var(--space-6);
 }
 
 @keyframes dialog-in {
@@ -179,6 +207,7 @@
 }
 
 .dialog__title {
+  flex: 0 0 auto;
   font-family: var(--font-display);
   font-size: 1.6rem;
   line-height: 1.2;
@@ -198,10 +227,11 @@
 }
 
 .dialog__actions {
+  flex: 0 0 auto;
   display: flex;
   justify-content: flex-end;
   gap: var(--space-3);
-  margin-top: var(--space-6);
+  margin-top: var(--space-5);
 }
 
 @media (max-width: 480px) {

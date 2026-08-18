@@ -1,20 +1,20 @@
-import { useId, useState } from 'react'
-import { useOverlay } from '../hooks/useOverlay'
+import { useId, useState } from "react";
+import { useOverlay } from "../hooks/useOverlay";
 
 interface Props {
-  title: string
-  body: string
-  confirmLabel: string
-  cancelLabel?: string
+  title: string;
+  body: string;
+  confirmLabel: string;
+  cancelLabel?: string;
   /**
    * When set, the exact words that must be typed before the action is allowed.
    * Reserved for things that cannot be undone.
    */
-  confirmPhrase?: string
-  busy?: boolean
-  error?: string | null
-  onConfirm: () => void
-  onCancel: () => void
+  confirmPhrase?: string;
+  busy?: boolean;
+  error?: string | null;
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
 /**
@@ -30,7 +30,7 @@ export function ConfirmDialog({
   title,
   body,
   confirmLabel,
-  cancelLabel = 'Cancel',
+  cancelLabel = "Cancel",
   confirmPhrase,
   busy = false,
   error = null,
@@ -38,15 +38,16 @@ export function ConfirmDialog({
   onCancel,
 }: Props) {
   const containerRef = useOverlay(true, () => {
-    if (!busy) onCancel()
-  })
+    if (!busy) onCancel();
+  });
 
-  const [typed, setTyped] = useState('')
-  const inputId = useId()
+  const [typed, setTyped] = useState("");
+  const inputId = useId();
 
   // Trimmed only at the edges: someone pasting a title should not be defeated
   // by a trailing space, but the words themselves have to match.
-  const matches = confirmPhrase === undefined || typed.trim() === confirmPhrase.trim()
+  const matches =
+    confirmPhrase === undefined || typed.trim() === confirmPhrase.trim();
 
   return (
     <div className="scrim" role="presentation">
@@ -63,40 +64,47 @@ export function ConfirmDialog({
           {title}
         </h2>
 
-        <p className="dialog__body" id="confirm-body">
-          {body}
-        </p>
+        <div className="dialog__scroll">
+          <p className="dialog__body" id="confirm-body">
+            {body}
+          </p>
 
-        {confirmPhrase !== undefined && (
-          <div className="dialog__fields">
-            <label className="field__label" htmlFor={inputId}>
-              Type the title to confirm
-            </label>
+          {confirmPhrase !== undefined && (
+            <div className="dialog__fields">
+              <label className="field__label" htmlFor={inputId}>
+                Type the title to confirm
+              </label>
 
-            {/* Selectable on purpose: copying it is the expected way through. */}
-            <p className="confirm__phrase">{confirmPhrase}</p>
+              {/* Selectable on purpose: copying it is the expected way through. */}
+              <p className="confirm__phrase">{confirmPhrase}</p>
 
-            <input
-              id={inputId}
-              className="field__input"
-              value={typed}
-              onChange={(event) => setTyped(event.target.value)}
-              autoComplete="off"
-              spellCheck={false}
-              disabled={busy}
-              data-autofocus
-            />
-          </div>
-        )}
+              <input
+                id={inputId}
+                className="field__input"
+                value={typed}
+                onChange={(event) => setTyped(event.target.value)}
+                autoComplete="off"
+                spellCheck={false}
+                disabled={busy}
+                data-autofocus
+              />
+            </div>
+          )}
 
-        {error && (
-          <div className="dialog__error" role="alert">
-            {error}
-          </div>
-        )}
+          {error && (
+            <div className="dialog__error" role="alert">
+              {error}
+            </div>
+          )}
+        </div>
 
         <div className="dialog__actions">
-          <button type="button" className="button button--quiet" onClick={onCancel} disabled={busy}>
+          <button
+            type="button"
+            className="button button--quiet"
+            onClick={onCancel}
+            disabled={busy}
+          >
             {cancelLabel}
           </button>
 
@@ -105,12 +113,12 @@ export function ConfirmDialog({
             className="button button--danger"
             onClick={onConfirm}
             disabled={busy || !matches}
-            {...(confirmPhrase === undefined ? { 'data-autofocus': true } : {})}
+            {...(confirmPhrase === undefined ? { "data-autofocus": true } : {})}
           >
-            {busy ? 'Removing…' : confirmLabel}
+            {busy ? "Removing…" : confirmLabel}
           </button>
         </div>
       </div>
     </div>
-  )
+  );
 }
