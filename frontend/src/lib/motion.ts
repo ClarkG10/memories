@@ -56,6 +56,24 @@ export function prefersReducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
+/**
+ * Whether it is worth moving anything at all.
+ *
+ * Reduced motion is the obvious half. The other half is a page nobody is
+ * looking at: a tab opened in the background, or restored behind another one,
+ * is given no animation frames, so a tween started there paints its opening
+ * state — transparent — and then sits on it until someone happens to look.
+ *
+ * Every animation here begins by hiding the thing it is about to bring in, so
+ * that would not be a missed animation but a blank masthead. When there is no
+ * frame coming, nothing is hidden and the page is simply already at rest.
+ */
+export function canAnimate(): boolean {
+  if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return false
+
+  return !prefersReducedMotion()
+}
+
 type Targets = Element | ArrayLike<Element> | null | undefined
 
 function toElements(targets: Targets): Element[] {
@@ -84,7 +102,7 @@ export interface SettleOptions {
 export function settleIn(targets: Targets, options: SettleOptions = {}): gsap.core.Tween | null {
   const elements = toElements(targets)
 
-  if (elements.length === 0 || prefersReducedMotion()) return null
+  if (elements.length === 0 || !canAnimate()) return null
 
   return gsap.from(elements, {
     opacity: 0,
@@ -109,7 +127,7 @@ export function settleOut(
   onDone: () => void,
   options: Pick<SettleOptions, 'distance' | 'duration'> = {},
 ): gsap.core.Tween | null {
-  if (!target || prefersReducedMotion()) {
+  if (!target || !canAnimate()) {
     onDone()
 
     return null

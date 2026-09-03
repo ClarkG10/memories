@@ -2,7 +2,7 @@ import { MediaImage } from './MediaImage'
 import { VideoThumb } from './VideoThumb'
 import { MemoryActions } from './MemoryActions'
 import { useReveal } from '../hooks/useReveal'
-import { DISTANCE, DURATION, EASE, gsap, prefersReducedMotion, useGSAP } from '../lib/motion'
+import { DISTANCE, DURATION, EASE, canAnimate, gsap, useGSAP } from '../lib/motion'
 import { usePrefetchMemory } from '../api/queries'
 import { formatDayAndMonth } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
@@ -51,12 +51,13 @@ export function MemoryPlate({
       if (!parts || parts.length === 0) return
 
       /*
-       | Less movement, asked for at any point — including after this memory
-       | was already being held back. Anything an earlier run set is handed
-       | straight back to the stylesheet, so a memory can never be left
-       | invisible by a preference that changed while it was off screen.
+       | Nothing to be gained by moving: less motion asked for, or no frames
+       | coming because nobody is looking at this tab. Either can become true
+       | after this memory was already being held back, so anything an earlier
+       | run set is handed straight back to the stylesheet — a memory must
+       | never be left invisible by a decision made while it was off screen.
        */
-      if (prefersReducedMotion()) {
+      if (!canAnimate()) {
         gsap.set(parts, { clearProps: 'opacity,transform' })
 
         return

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMemory } from '../api/queries'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { useOverlay } from '../hooks/useOverlay'
-import { DURATION, EASE, gsap, prefersReducedMotion, settleIn, useGSAP } from '../lib/motion'
+import { DURATION, EASE, canAnimate, gsap, settleIn, useGSAP } from '../lib/motion'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
 import { referenceOf } from '../api/client'
@@ -449,7 +449,7 @@ function Stage({
       const direction = Math.sign(index - lastIndex.current)
       lastIndex.current = index
 
-      if (prefersReducedMotion() || !ref.current) return
+      if (!canAnimate() || !ref.current) return
 
       /*
        | Measured rather than asked of GSAP: a tween does not report itself as

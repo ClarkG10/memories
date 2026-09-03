@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { prefersReducedMotion, settleIn, settleOut } from '../motion'
+import { canAnimate, prefersReducedMotion, settleIn, settleOut } from '../motion'
 
 /** Pretend the person has asked their system for less movement. */
 function askForLessMotion() {
@@ -45,6 +45,28 @@ describe('motion', () => {
     // At rest, nothing GSAP set is left behind.
     expect(element.style.opacity).toBe('')
     expect(element.style.transform).toBe('')
+  })
+
+  it('hides nothing when the page is not being drawn', () => {
+    /*
+     | A tab nobody is looking at gets no animation frames, so a tween started
+     | there would paint its opening state — transparent — and sit on it. The
+     | archive would be blank rather than merely unanimated.
+     */
+    const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+
+    const element = anElement()
+
+    expect(canAnimate()).toBe(false)
+    expect(settleIn(element)).toBeNull()
+    expect(element.style.opacity).toBe('')
+
+    const done = vi.fn()
+    expect(settleOut(element, done)).toBeNull()
+    expect(done).toHaveBeenCalledTimes(1)
+
+    hidden.mockRestore()
+    expect(canAnimate()).toBe(true)
   })
 
   it('moves nothing when less motion has been asked for', () => {
