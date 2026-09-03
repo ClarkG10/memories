@@ -411,8 +411,14 @@
   color: var(--ink);
 }
 
+/*
+ | Muted rather than faint. The faint ink is for hairlines and resting icons —
+ | at 2.4:1 against paper it is below what anyone should be asked to read, and
+ | this placeholder is the only thing in the archive that used it for real
+ | words. It still reads as quiet; it now also reads.
+ */
 .search__input::placeholder {
-  color: var(--ink-faint);
+  color: var(--ink-muted);
 }
 
 .search__input:focus {
