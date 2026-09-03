@@ -1,5 +1,6 @@
 import gsap from 'gsap'
 import { Flip } from 'gsap/Flip'
+import { ScrollToPlugin } from 'gsap/ScrollToPlugin'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import { SplitText } from 'gsap/SplitText'
 import { useGSAP } from '@gsap/react'
@@ -23,7 +24,12 @@ import { useGSAP } from '@gsap/react'
  *      nothing, and the element is where it always was.
  */
 
-gsap.registerPlugin(Flip, ScrollTrigger, SplitText, useGSAP)
+/*
+ | Only what is actually used. Every plugin registered here is bundled whether
+ | anything animates with it or not, and Draggable and InertiaPlugin between
+ | them are 25 kB gzipped of nothing at all until something drags.
+ */
+gsap.registerPlugin(Flip, ScrollToPlugin, ScrollTrigger, SplitText, useGSAP)
 
 /*
  | The curves in tokens.css, named rather than redrawn. GSAP can reproduce a
@@ -217,4 +223,60 @@ export function whenFontsReady(run: () => void): () => void {
   }
 }
 
-export { Flip, ScrollTrigger, SplitText, gsap, useGSAP }
+/**
+ * Takes an element off the screen, then says when it has gone.
+ *
+ * The shape every overlay's exit needs: something conditionally rendered has
+ * to finish moving before its parent is allowed to stop rendering it, so the
+ * parent's `onClose` becomes the thing this calls at the end rather than the
+ * thing the close button calls directly.
+ *
+ * With nothing to animate — reduced motion, or a tab nobody is watching — it
+ * simply says so at once, and the overlay closes the way it always did.
+ */
+export function leave(
+  target: Element | null | undefined,
+  onDone: () => void,
+  vars: gsap.TweenVars = {},
+): gsap.core.Tween | null {
+  if (!target || !canAnimate()) {
+    onDone()
+
+    return null
+  }
+
+  gsap.killTweensOf(target)
+
+  return gsap.to(target, {
+    duration: DURATION.quick,
+    ease: EASE.settle,
+    ...vars,
+    onComplete: onDone,
+  })
+}
+
+/**
+ * Scrolls the page, with GSAP driving it rather than the browser.
+ *
+ * `scroll-behavior: smooth` cannot be interrupted, cannot be eased, and is
+ * ignored outright by some browsers when a preference asks for less motion —
+ * at which point the page jumps. This does the same job on the archive's own
+ * curve, and honestly does nothing at all when nothing should move.
+ */
+export function scrollToY(y: number, onDone?: () => void): void {
+  if (!canAnimate()) {
+    window.scrollTo({ top: y })
+    onDone?.()
+
+    return
+  }
+
+  gsap.to(window, {
+    scrollTo: { y, autoKill: true },
+    duration: DURATION.slow,
+    ease: EASE.soft,
+    onComplete: onDone,
+  })
+}
+
+export { Flip, ScrollToPlugin, ScrollTrigger, SplitText, gsap, useGSAP }

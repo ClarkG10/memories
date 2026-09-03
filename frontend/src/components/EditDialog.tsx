@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FieldCount } from "./FieldCount";
 import { MediaEditor, type EditorItem } from "./MediaEditor";
 import { ApiError } from "../api/client";
@@ -10,6 +10,7 @@ import {
   useUpdateMemory,
 } from "../api/queries";
 import { useOverlay } from "../hooks/useOverlay";
+import { useOverlayMotion } from "../hooks/useOverlayMotion";
 import { useUploadQueue } from "../hooks/useUploadQueue";
 import { todayAsInputValue } from "../lib/dates";
 import { DEFAULT_TEXT_LIMITS } from "../api/types";
@@ -59,10 +60,12 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
    | the field simply has nothing in it.
    */
   const full = useMemory(memory.id);
+  const scrimRef = useRef<HTMLDivElement>(null);
   const containerRef = useOverlay<HTMLFormElement>(true, () => {
     // Never close mid-upload: the files would be left half-sent.
-    if (!update.isPending && !revise.isPending && !queue.isUploading) onClose();
+    if (!update.isPending && !revise.isPending && !queue.isUploading) beginClose();
   });
+  const { beginClose } = useOverlayMotion(containerRef, scrimRef, onClose);
 
   const [title, setTitle] = useState(memory.title);
   const [date, setDate] = useState(memory.memory_date);
@@ -230,7 +233,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
   };
 
   return (
-    <div className="scrim" role="presentation">
+    <div className="scrim" role="presentation" ref={scrimRef}>
       {/* A form, so Enter saves from any field rather than doing nothing. */}
       <form
         className="dialog"
@@ -351,7 +354,7 @@ export function EditDialog({ memory, onClose, onSaved }: Props) {
           <button
             type="button"
             className="button button--quiet"
-            onClick={onClose}
+            onClick={beginClose}
             disabled={busy}
           >
             Cancel

@@ -121,6 +121,40 @@ export function MemoryPlate({
   )
 
   /*
+   | And then it drifts, very slightly, for as long as it is on the screen.
+   |
+   | Fourteen pixels across a whole screen of travel — far too little to notice
+   | as movement, and just enough that scrolling the archive feels like moving
+   | through it rather than past it. It is the block that drifts, not the
+   | photograph inside its frame: scaling a photograph to give it room to move
+   | would crop it, and a memory shown whole is the point of the page.
+   */
+  useGSAP(
+    () => {
+      const inner = ref.current?.querySelector<HTMLElement>('.plate__inner')
+
+      if (!inner || !canAnimate()) return
+
+      gsap.fromTo(
+        inner,
+        { y: 14 },
+        {
+          y: -14,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: ref.current,
+            start: 'top bottom',
+            end: 'bottom top',
+            scrub: 0.6,
+            invalidateOnRefresh: true,
+          },
+        },
+      )
+    },
+    { scope: ref },
+  )
+
+  /*
    | Opening a memory. The photograph that was pressed is measured first, so
    | the viewer can grow it out of the place it was standing rather than fade
    | it in over the top of the timeline.

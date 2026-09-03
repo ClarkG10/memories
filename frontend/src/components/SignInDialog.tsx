@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ApiError } from "../api/client";
 import { useSignIn } from "../api/queries";
 import { useOverlay } from "../hooks/useOverlay";
+import { useOverlayMotion } from "../hooks/useOverlayMotion";
 
 interface Props {
   onClose: () => void;
@@ -17,9 +18,11 @@ interface Props {
  */
 export function SignInDialog({ onClose, onSignedIn }: Props) {
   const signIn = useSignIn();
+  const scrimRef = useRef<HTMLDivElement>(null);
   const containerRef = useOverlay<HTMLFormElement>(true, () => {
-    if (!signIn.isPending) onClose();
+    if (!signIn.isPending) beginClose();
   });
+  const { leaving, beginClose } = useOverlayMotion(containerRef, scrimRef, onClose);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -44,7 +47,7 @@ export function SignInDialog({ onClose, onSignedIn }: Props) {
   };
 
   return (
-    <div className="scrim" role="presentation">
+    <div className="scrim" role="presentation" ref={scrimRef}>
       <form
         className="dialog"
         role="dialog"
@@ -101,8 +104,8 @@ export function SignInDialog({ onClose, onSignedIn }: Props) {
           <button
             type="button"
             className="button button--quiet"
-            onClick={onClose}
-            disabled={signIn.isPending}
+            onClick={beginClose}
+            disabled={signIn.isPending || leaving}
           >
             Cancel
           </button>

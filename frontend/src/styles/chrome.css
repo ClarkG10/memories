@@ -181,6 +181,27 @@
   animation: dialog-in var(--duration) var(--ease-out-soft);
 }
 
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+  }
+}
+
+/*
+ | The way out is GSAP's — see useOverlayMotion — because a stylesheet cannot
+ | hold an element on the page long enough to animate it away. The way in
+ | stays here: a tween that grabs the panel in the same frame React is moving
+ | focus into it races with that focus, and the caret ends up on the body
+ | with the first keystroke lost.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .scrim,
+  .dialog {
+    animation: none;
+  }
+}
+
 /* The part that gives way. Negative margins let the scrollbar sit at the
    dialog's edge rather than inset awkwardly from the padding. */
 .dialog__scroll {
@@ -190,20 +211,6 @@
   overscroll-behavior: contain;
   margin-inline: calc(var(--space-6) * -1);
   padding-inline: var(--space-6);
-}
-
-@keyframes dialog-in {
-  from {
-    opacity: 0;
-    transform: translateY(12px) scale(0.985);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .scrim,
-  .dialog {
-    animation: none;
-  }
 }
 
 .dialog__title {

@@ -6,6 +6,7 @@ import { ComposeSheet } from '../components/ComposeSheet'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { EditDialog, type EditableMemory } from '../components/EditDialog'
 import { Masthead } from '../components/Masthead'
+import { scrollToY } from '../lib/motion'
 import { MemoryViewer } from '../components/MemoryViewer'
 import { Notice } from '../components/Notice'
 import { SignInDialog } from '../components/SignInDialog'
@@ -57,7 +58,13 @@ export function ArchivePage() {
     else next.set('year', String(year))
 
     setSearch(next, { replace: true })
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    /*
+     | GSAP rather than `behavior: 'smooth'`, which cannot be eased, cannot be
+     | interrupted, and is ignored outright by some browsers when a preference
+     | asks for less movement — at which point the page jumps instead.
+     */
+    scrollToY(0)
   }
 
   const searchFor = (value: string) => {

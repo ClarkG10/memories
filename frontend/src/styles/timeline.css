@@ -85,6 +85,20 @@
   color: var(--ink);
 }
 
+/*
+ | The year passing the middle of the screen, which is not the same thing as
+ | the year that has been chosen. Quieter than a selection on purpose: it is
+ | telling you where you are, not what you asked for.
+ */
+.rail__item[data-inview='true'] {
+  color: var(--ink-soft);
+}
+
+.rail__item[data-inview='true'] .rail__mark {
+  width: 16px;
+  background: var(--blue);
+}
+
 /* The marker grows into a short line for the year being shown. */
 .rail__mark {
   width: 8px;
@@ -142,6 +156,10 @@
   transition:
     background-color var(--duration-quick) var(--ease),
     color var(--duration-quick) var(--ease);
+}
+
+.yearstrip__item[data-inview='true'] {
+  color: var(--ink-soft);
 }
 
 .yearstrip__item[aria-current='true'] {

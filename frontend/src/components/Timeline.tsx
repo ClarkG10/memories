@@ -27,6 +27,25 @@ interface Props {
 export function Timeline({ year, search = '', canManage, onOpen, onEdit, onRemove, onAdd }: Props) {
   const query = useTimeline(year, search)
   const sentinel = useRef<HTMLDivElement | null>(null)
+  const loadedCount = query.data?.pages.reduce((total, page) => total + page.data.length, 0) ?? 0
+
+  /*
+   | Every trigger on the page measures itself against a document that just got
+   | longer, so they all have to be told once when more memories arrive.
+   |
+   | Once, here — not once per memory as it mounts. ScrollTrigger.refresh()
+   | recalculates every trigger in the document, so calling it from each plate
+   | made loading a page of twenty memories twenty full recalculations, which
+   | is the most expensive thing the archive did.
+   */
+  useGSAP(
+    () => {
+      if (loadedCount === 0) return
+
+      ScrollTrigger.refresh()
+    },
+    { dependencies: [loadedCount] },
+  )
 
   const { hasNextPage, isFetchingNextPage, fetchNextPage } = query
 
@@ -223,11 +242,6 @@ function YearHeading({ year, count }: { year: number; count: number }) {
           '-=0.35',
         )
 
-      /*
-       | The timeline grows as more memories load, so every trigger's start
-       | position moves. Without this they keep firing at the old offsets.
-       */
-      ScrollTrigger.refresh()
     },
     { scope: ref },
   )

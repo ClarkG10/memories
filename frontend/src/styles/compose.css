@@ -35,14 +35,6 @@
   animation: sheet-up var(--duration) var(--ease-out-soft);
 }
 
-@media (min-width: 720px) {
-  .sheet__panel {
-    max-width: 40rem;
-    max-height: 88dvh;
-    border-radius: var(--radius-lg);
-  }
-}
-
 @keyframes sheet-up {
   from {
     transform: translateY(24px);
@@ -50,10 +42,19 @@
   }
 }
 
+/* The way out is GSAP's; see the note in chrome.css for why the way in is not. */
 @media (prefers-reduced-motion: reduce) {
   .sheet,
   .sheet__panel {
     animation: none;
+  }
+}
+
+@media (min-width: 720px) {
+  .sheet__panel {
+    max-width: 40rem;
+    max-height: 88dvh;
+    border-radius: var(--radius-lg);
   }
 }
 

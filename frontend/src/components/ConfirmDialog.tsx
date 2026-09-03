@@ -1,5 +1,6 @@
-import { useId, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { useOverlay } from "../hooks/useOverlay";
+import { useOverlayMotion } from "../hooks/useOverlayMotion";
 
 interface Props {
   title: string;
@@ -37,9 +38,11 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: Props) {
+  const scrimRef = useRef<HTMLDivElement>(null);
   const containerRef = useOverlay(true, () => {
-    if (!busy) onCancel();
+    if (!busy) beginClose();
   });
+  const { leaving, beginClose } = useOverlayMotion(containerRef, scrimRef, onCancel);
 
   const [typed, setTyped] = useState("");
   const inputId = useId();
@@ -50,7 +53,7 @@ export function ConfirmDialog({
     confirmPhrase === undefined || typed.trim() === confirmPhrase.trim();
 
   return (
-    <div className="scrim" role="presentation">
+    <div className="scrim" role="presentation" ref={scrimRef}>
       <div
         className="dialog"
         role="alertdialog"
@@ -102,8 +105,8 @@ export function ConfirmDialog({
           <button
             type="button"
             className="button button--quiet"
-            onClick={onCancel}
-            disabled={busy}
+            onClick={beginClose}
+            disabled={busy || leaving}
           >
             {cancelLabel}
           </button>
@@ -112,7 +115,7 @@ export function ConfirmDialog({
             type="button"
             className="button button--danger"
             onClick={onConfirm}
-            disabled={busy || !matches}
+            disabled={busy || leaving || !matches}
             {...(confirmPhrase === undefined ? { "data-autofocus": true } : {})}
           >
             {busy ? "Removing…" : confirmLabel}

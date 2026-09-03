@@ -3,6 +3,7 @@ import { FieldCount } from './FieldCount'
 import { ApiError } from '../api/client'
 import { idempotencyKey, useAlbums, useCreateMemory } from '../api/queries'
 import { useOverlay } from '../hooks/useOverlay'
+import { useOverlayMotion } from '../hooks/useOverlayMotion'
 import { useUploadQueue } from '../hooks/useUploadQueue'
 import { todayAsInputValue } from '../lib/dates'
 import { DEFAULT_TEXT_LIMITS, type Archive } from '../api/types'
@@ -27,9 +28,11 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
   const limits = archive.text ?? DEFAULT_TEXT_LIMITS
   const create = useCreateMemory()
   const albums = useAlbums()
+  const scrimRef = useRef<HTMLDivElement>(null)
   const containerRef = useOverlay(true, () => {
-    if (!busy) onClose()
+    if (!busy) beginClose()
   })
+  const { leaving, beginClose } = useOverlayMotion(containerRef, scrimRef, onClose, 'sheet')
 
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [dragging, setDragging] = useState(false)
@@ -90,7 +93,7 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
   }
 
   return (
-    <div className="sheet" role="presentation">
+    <div className="sheet" role="presentation" ref={scrimRef}>
       <div
         className="sheet__panel"
         role="dialog"
@@ -107,8 +110,8 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
           <button
             type="button"
             className="button button--plain"
-            onClick={onClose}
-            disabled={busy}
+            onClick={beginClose}
+            disabled={busy || leaving}
           >
             Close
           </button>
@@ -367,7 +370,7 @@ export function ComposeSheet({ archive, onClose, onSaved }: Props) {
           <button
             type="button"
             className="button button--quiet"
-            onClick={busy ? queue.cancel : onClose}
+            onClick={busy ? queue.cancel : beginClose}
           >
             {busy ? 'Stop' : 'Cancel'}
           </button>
