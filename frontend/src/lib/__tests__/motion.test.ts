@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { canAnimate, prefersReducedMotion, settleIn, settleOut } from '../motion'
+import { canAnimate, prefersReducedMotion, rememberOrigin, settleIn, settleOut, takeOrigin } from '../motion'
 
 /** Pretend the person has asked their system for less movement. */
 function askForLessMotion() {
@@ -122,5 +122,35 @@ describe('motion', () => {
 
     expect(settleOut(anElement(), done)).toBeNull()
     expect(done).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('where a memory was opened from', () => {
+  it('is handed to the memory that was opened, and only to that one', () => {
+    rememberOrigin('memory-1', anElement())
+
+    // A different memory must never fly in from someone else's thumbnail.
+    expect(takeOrigin('memory-2')).toBeNull()
+  })
+
+  it('is used once and then gone', () => {
+    rememberOrigin('memory-1', anElement())
+
+    expect(takeOrigin('memory-1')).not.toBeNull()
+    expect(takeOrigin('memory-1')).toBeNull()
+  })
+
+  it('remembers nothing when there is nothing to remember', () => {
+    rememberOrigin('memory-1', null)
+
+    expect(takeOrigin('memory-1')).toBeNull()
+  })
+
+  it('remembers nothing when the archive is not animating', () => {
+    askForLessMotion()
+
+    rememberOrigin('memory-1', anElement())
+
+    expect(takeOrigin('memory-1')).toBeNull()
   })
 })

@@ -2,7 +2,7 @@ import { MediaImage } from './MediaImage'
 import { VideoThumb } from './VideoThumb'
 import { MemoryActions } from './MemoryActions'
 import { useReveal } from '../hooks/useReveal'
-import { DISTANCE, DURATION, EASE, canAnimate, gsap, useGSAP } from '../lib/motion'
+import { DISTANCE, DURATION, EASE, canAnimate, gsap, rememberOrigin, useGSAP } from '../lib/motion'
 import { usePrefetchMemory } from '../api/queries'
 import { formatDayAndMonth } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
@@ -46,9 +46,14 @@ export function MemoryPlate({
    */
   useGSAP(
     () => {
-      const parts = ref.current?.querySelectorAll('.plate__frame, .plate__caption')
+      const root = ref.current
 
-      if (!parts || parts.length === 0) return
+      if (!root) return
+
+      const frames = root.querySelectorAll<HTMLElement>('.plate__frame')
+      const caption = root.querySelector<HTMLElement>('.plate__caption')
+
+      if (frames.length === 0) return
 
       /*
        | Nothing to be gained by moving: less motion asked for, or no frames
@@ -58,29 +63,72 @@ export function MemoryPlate({
        | never be left invisible by a decision made while it was off screen.
        */
       if (!canAnimate()) {
-        gsap.set(parts, { clearProps: 'opacity,transform' })
+        gsap.set(frames, { clearProps: 'clipPath,transform' })
+
+        if (caption) gsap.set(caption, { clearProps: 'opacity,transform' })
 
         return
       }
 
+      /*
+       | Held, until it has been scrolled to. The photograph is covered rather
+       | than merely transparent, because it is going to be uncovered.
+       */
       if (!visible) {
-        gsap.set(parts, { opacity: 0, y: DISTANCE })
+        gsap.set(frames, { clipPath: 'inset(100% 0% 0% 0%)', y: DISTANCE })
+
+        if (caption) gsap.set(caption, { opacity: 0, y: DISTANCE })
 
         return
       }
 
-      gsap.to(parts, {
-        opacity: 1,
+      /*
+       | And shown. The photograph is wiped upward into place — a memory
+       | arriving should read as something being shown to you, which a
+       | photograph uncovering itself says in a way opacity cannot — and the
+       | words follow it, never the other way round.
+       |
+       | `to` rather than `from`: the hold above has already put these where
+       | they start, and `from` would read that as the resting state and
+       | animate back into it.
+       */
+      const timeline = gsap.timeline()
+
+      timeline.to(frames, {
+        clipPath: 'inset(0% 0% 0% 0%)',
         y: 0,
-        duration: DURATION.slow,
+        duration: 1,
         ease: EASE.soft,
-        stagger: 0.09,
-        clearProps: 'opacity,transform',
-        overwrite: 'auto',
+        stagger: 0.11,
+        clearProps: 'clipPath,transform',
       })
+
+      if (caption) {
+        timeline.to(
+          caption,
+          {
+            opacity: 1,
+            y: 0,
+            duration: DURATION.slow,
+            ease: EASE.soft,
+            clearProps: 'opacity,transform',
+          },
+          '-=0.7',
+        )
+      }
     },
     { scope: ref, dependencies: [visible] },
   )
+
+  /*
+   | Opening a memory. The photograph that was pressed is measured first, so
+   | the viewer can grow it out of the place it was standing rather than fade
+   | it in over the top of the timeline.
+   */
+  const open = (event: React.MouseEvent<HTMLButtonElement>, mediaIndex: number) => {
+    rememberOrigin(memory.id, event.currentTarget.querySelector('.media'))
+    onOpen(memory.id, mediaIndex)
+  }
 
   // Defensive: a memory with no usable preview is skipped rather than allowed
   // to take the timeline down with it.
@@ -119,7 +167,7 @@ export function MemoryPlate({
             <button
               type="button"
               className="plate__frame plate__lead"
-              onClick={() => onOpen(memory.id, 0)}
+              onClick={(event) => open(event, 0)}
               aria-label={`Open ${memory.title}`}
             >
               <Thumb media={lead} title={memory.title} eager={eager} />
@@ -131,7 +179,7 @@ export function MemoryPlate({
                   key={media.id}
                   type="button"
                   className="plate__frame plate__companion"
-                  onClick={() => onOpen(memory.id, index + 1)}
+                  onClick={(event) => open(event, index + 1)}
                   aria-label={`Open ${memory.title}, photo ${index + 2}`}
                 >
                   <Thumb media={media} title={memory.title} eager={false} />
@@ -149,7 +197,7 @@ export function MemoryPlate({
           <button
             type="button"
             className="plate__frame"
-            onClick={() => onOpen(memory.id, 0)}
+            onClick={(event) => open(event, 0)}
             aria-label={`Open ${memory.title}`}
           >
             <Thumb media={lead} title={memory.title} eager={eager} />

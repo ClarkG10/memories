@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMemory } from '../api/queries'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { useOverlay } from '../hooks/useOverlay'
-import { DURATION, EASE, canAnimate, gsap, settleIn, useGSAP } from '../lib/motion'
+import { DURATION, EASE, Flip, canAnimate, gsap, settleIn, takeOrigin, useGSAP } from '../lib/motion'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
 import { referenceOf } from '../api/client'
@@ -305,6 +305,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
           {current && (
             <Stage
               media={current}
+              memoryId={memoryId}
               index={index}
               title={query.data?.title ?? ''}
               onToggleBare={toggleBare}
@@ -417,11 +418,13 @@ function previewSource(media: Media | undefined): string | null {
 
 function Stage({
   media,
+  memoryId,
   index,
   title,
   onToggleBare,
 }: {
   media: Media
+  memoryId: string
   index: number
   title: string
   onToggleBare: () => void
@@ -450,6 +453,34 @@ function Stage({
       lastIndex.current = index
 
       if (!canAnimate() || !ref.current) return
+
+      /*
+       | Opened from the timeline: the photograph grows out of the thumbnail
+       | that was pressed, which is still on screen behind this. Flip.fit works
+       | out the transform that would lay this frame exactly over that
+       | rectangle, and the tween starts there and undoes it.
+       |
+       | Followed from a shared link there is no thumbnail to come from, and
+       | takeOrigin returns nothing — so the photograph simply arrives, which
+       | is what it always did.
+       */
+      const origin = takeOrigin(memoryId)
+
+      if (origin) {
+        const from = Flip.fit(ref.current, origin, { scale: true, getVars: true })
+
+        lastArrival.current = performance.now()
+
+        gsap.from(ref.current, {
+          ...from,
+          opacity: 0,
+          duration: DURATION.slow,
+          ease: EASE.soft,
+          clearProps: 'transform,opacity',
+        })
+
+        return
+      }
 
       /*
        | Measured rather than asked of GSAP: a tween does not report itself as

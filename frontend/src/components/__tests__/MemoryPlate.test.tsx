@@ -46,8 +46,12 @@ describe('how a memory arrives', () => {
     const frame = container.querySelector('.plate__frame') as HTMLElement
     const caption = container.querySelector('.plate__caption') as HTMLElement
 
-    // Held: not yet at rest, so the arrival is a real one rather than a no-op.
-    expect(frame.style.opacity).toBe('0')
+    /*
+     | Held: the photograph is covered, and the words below it are not yet
+     | there — so what follows is a real arrival rather than a no-op.
+     */
+    expect(frame.style.clipPath).toContain('inset(100%')
+    expect(caption.style.opacity).toBe('0')
 
     /*
      | And let go of. Once settled there is no inline opacity or transform
@@ -56,9 +60,10 @@ describe('how a memory arrives', () => {
      */
     await waitFor(
       () => {
-        expect(frame.style.opacity).toBe('')
+        expect(frame.style.clipPath).toBe('')
         expect(frame.style.transform).toBe('')
         expect(caption.style.opacity).toBe('')
+        expect(caption.style.transform).toBe('')
       },
       { timeout: 3000 },
     )
@@ -77,7 +82,7 @@ describe('how a memory arrives', () => {
      | switched on while it was still off screen — would be a photograph the
      | archive simply refused to show.
      */
-    expect(frame.style.opacity).toBe('')
+    expect(frame.style.clipPath).toBe('')
     expect(frame.style.transform).toBe('')
     expect(caption.style.opacity).toBe('')
 

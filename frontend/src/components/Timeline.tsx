@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useRef } from 'react'
+import { DURATION, EASE, ScrollTrigger, canAnimate, gsap, useGSAP } from '../lib/motion'
 import { MemoryPlate } from './MemoryPlate'
 import { EmptyState } from './EmptyState'
 import { TimelineSkeleton } from './TimelineSkeleton'
@@ -103,14 +104,14 @@ export function Timeline({ year, search = '', canManage, onOpen, onEdit, onRemov
       )}
 
       {groupByYearAndMonth(memories).map((yearGroup) => (
-        <section key={yearGroup.year} className="year" aria-label={`${yearGroup.year}`}>
-          <header className="year__heading">
-            <h2 className="year__number">{yearGroup.year}</h2>
-            <span className="year__rule" aria-hidden="true" />
-            <span className="label year__count">
-              {yearGroup.count} {yearGroup.count === 1 ? 'memory' : 'memories'}
-            </span>
-          </header>
+        <section
+          key={yearGroup.year}
+          className="year"
+          aria-label={`${yearGroup.year}`}
+          /* Read by the year rail, which follows whichever year is on screen. */
+          data-year={yearGroup.year}
+        >
+          <YearHeading year={yearGroup.year} count={yearGroup.count} />
 
           {yearGroup.months.map((monthGroup) => (
             <Fragment key={`${yearGroup.year}-${monthGroup.month}`}>
@@ -158,6 +159,87 @@ export function Timeline({ year, search = '', canManage, onOpen, onEdit, onRemov
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * A year, announcing itself as you reach it.
+ *
+ * The number comes up out of the line, and the rule draws itself across the
+ * page to meet the count on the right — a page turning to a new chapter
+ * rather than another heading scrolling past.
+ */
+function YearHeading({ year, count }: { year: number; count: number }) {
+  const ref = useRef<HTMLElement | null>(null)
+
+  useGSAP(
+    () => {
+      const heading = ref.current
+
+      if (!heading || !canAnimate()) return
+
+      const number = heading.querySelector('.year__number')
+      const rule = heading.querySelector('.year__rule')
+      const label = heading.querySelector('.year__count')
+
+      if (!number || !rule || !label) return
+
+      const timeline = gsap.timeline({
+        scrollTrigger: {
+          trigger: heading,
+          // Once it is properly on screen rather than the instant it peeks in.
+          start: 'top 88%',
+          once: true,
+        },
+      })
+
+      timeline
+        .from(number, {
+          yPercent: 60,
+          opacity: 0,
+          duration: DURATION.slow,
+          ease: EASE.soft,
+          clearProps: 'opacity,transform',
+        })
+        .from(
+          rule,
+          {
+            scaleX: 0,
+            transformOrigin: 'left center',
+            duration: DURATION.slow,
+            ease: EASE.soft,
+            clearProps: 'transform',
+          },
+          '-=0.55',
+        )
+        .from(
+          label,
+          {
+            opacity: 0,
+            duration: DURATION.base,
+            ease: EASE.soft,
+            clearProps: 'opacity',
+          },
+          '-=0.35',
+        )
+
+      /*
+       | The timeline grows as more memories load, so every trigger's start
+       | position moves. Without this they keep firing at the old offsets.
+       */
+      ScrollTrigger.refresh()
+    },
+    { scope: ref },
+  )
+
+  return (
+    <header className="year__heading" ref={ref}>
+      <h2 className="year__number">{year}</h2>
+      <span className="year__rule" aria-hidden="true" />
+      <span className="label year__count">
+        {count} {count === 1 ? 'memory' : 'memories'}
+      </span>
+    </header>
   )
 }
 

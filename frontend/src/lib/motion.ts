@@ -1,4 +1,7 @@
 import gsap from 'gsap'
+import { Flip } from 'gsap/Flip'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { SplitText } from 'gsap/SplitText'
 import { useGSAP } from '@gsap/react'
 
 /**
@@ -20,7 +23,7 @@ import { useGSAP } from '@gsap/react'
  *      nothing, and the element is where it always was.
  */
 
-gsap.registerPlugin(useGSAP)
+gsap.registerPlugin(Flip, ScrollTrigger, SplitText, useGSAP)
 
 /*
  | The curves in tokens.css, named rather than redrawn. GSAP can reproduce a
@@ -151,4 +154,67 @@ export function settleOut(
   })
 }
 
-export { gsap, useGSAP }
+/**
+ * Where a memory was opened from.
+ *
+ * The timeline stays mounted behind the viewer, so the thumbnail that was
+ * clicked is still on screen and its geometry is still true. Recording it at
+ * the moment of the click lets the viewer's photograph grow out of exactly
+ * that rectangle instead of fading in over the top of it.
+ *
+ * A single slot, deliberately: only one memory can be being opened at a time,
+ * and a state left behind by an abandoned click must never be used to fly the
+ * next one in from the wrong place. It is taken, not read, and it goes stale.
+ */
+interface Origin {
+  key: string
+  state: ReturnType<typeof Flip.getState>
+  at: number
+}
+
+let origin: Origin | null = null
+
+/** How long a remembered thumbnail is still worth flying from. */
+const ORIGIN_LIFETIME_MS = 1500
+
+export function rememberOrigin(key: string, element: Element | null | undefined): void {
+  origin = element && canAnimate() ? { key, state: Flip.getState(element), at: performance.now() } : null
+}
+
+export function takeOrigin(key: string): ReturnType<typeof Flip.getState> | null {
+  const found = origin
+
+  origin = null
+
+  if (!found || found.key !== key) return null
+  if (performance.now() - found.at > ORIGIN_LIFETIME_MS) return null
+
+  return found.state
+}
+
+/**
+ * Runs a callback once the display fonts have arrived.
+ *
+ * Splitting a line into words before its font has loaded measures the fallback
+ * and lays the words out to the wrong widths. Cormorant Garamond is bundled
+ * rather than fetched, so this is usually one frame, but it is never nothing.
+ */
+export function whenFontsReady(run: () => void): () => void {
+  if (typeof document === 'undefined' || !('fonts' in document)) {
+    run()
+
+    return () => undefined
+  }
+
+  let cancelled = false
+
+  void document.fonts.ready.then(() => {
+    if (!cancelled) run()
+  })
+
+  return () => {
+    cancelled = true
+  }
+}
+
+export { Flip, ScrollTrigger, SplitText, gsap, useGSAP }
