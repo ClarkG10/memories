@@ -2,6 +2,7 @@ import { MediaImage } from './MediaImage'
 import { VideoThumb } from './VideoThumb'
 import { MemoryActions } from './MemoryActions'
 import { useReveal } from '../hooks/useReveal'
+import { DISTANCE, DURATION, EASE, gsap, prefersReducedMotion, useGSAP } from '../lib/motion'
 import { usePrefetchMemory } from '../api/queries'
 import { formatDayAndMonth } from '../lib/dates'
 import type { TimelineMemory } from '../api/types'
@@ -36,6 +37,50 @@ export function MemoryPlate({
   const { ref, visible } = useReveal<HTMLElement>()
   const prefetch = usePrefetchMemory()
 
+  /*
+   | How a memory arrives: the photograph first, then its companions, then the
+   | words, each a beat behind the last. Held back by GSAP until the plate is
+   | in view and brought to rest by GSAP once it is — so the stylesheet's own
+   | state is the visible one, and a page whose script never ran would still
+   | be a page of photographs.
+   */
+  useGSAP(
+    () => {
+      const parts = ref.current?.querySelectorAll('.plate__frame, .plate__caption')
+
+      if (!parts || parts.length === 0) return
+
+      /*
+       | Less movement, asked for at any point — including after this memory
+       | was already being held back. Anything an earlier run set is handed
+       | straight back to the stylesheet, so a memory can never be left
+       | invisible by a preference that changed while it was off screen.
+       */
+      if (prefersReducedMotion()) {
+        gsap.set(parts, { clearProps: 'opacity,transform' })
+
+        return
+      }
+
+      if (!visible) {
+        gsap.set(parts, { opacity: 0, y: DISTANCE })
+
+        return
+      }
+
+      gsap.to(parts, {
+        opacity: 1,
+        y: 0,
+        duration: DURATION.slow,
+        ease: EASE.soft,
+        stagger: 0.09,
+        clearProps: 'opacity,transform',
+        overwrite: 'auto',
+      })
+    },
+    { scope: ref, dependencies: [visible] },
+  )
+
   // Defensive: a memory with no usable preview is skipped rather than allowed
   // to take the timeline down with it.
   const preview = Array.isArray(memory.preview) ? memory.preview : []
@@ -50,8 +95,7 @@ export function MemoryPlate({
   return (
     <article
       ref={ref}
-      className="plate reveal"
-      data-visible={visible}
+      className="plate"
       data-flip={flip}
       data-testid="memory-plate"
       /*

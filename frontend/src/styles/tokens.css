@@ -70,7 +70,8 @@
   --page-max: 74rem;
 
   /* --- Motion ----------------------------------------------------------- */
-  /* Slow and soft. Nothing here should feel eager. */
+  /* Slow and soft. Nothing here should feel eager. The eases and durations
+     are mirrored in src/lib/motion.ts for what GSAP drives; change both. */
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
   --duration-quick: 220ms;

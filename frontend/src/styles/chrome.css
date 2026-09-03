@@ -295,7 +295,8 @@
   box-shadow: var(--shadow-lift);
   font-size: 0.875rem;
   color: var(--ink-soft);
-  animation: toast-in var(--duration) var(--ease-out-soft);
+  /* Arrives and leaves under GSAP — see Toasts.tsx — so the stylesheet holds
+     only where it rests. */
 }
 
 .toast--error {
@@ -309,19 +310,6 @@
   font-size: 0.8125rem;
   font-weight: 500;
   color: var(--blue-deep);
-}
-
-@keyframes toast-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toast {
-    animation: none;
-  }
 }
 
 /* --------------------------------------------------------------------------

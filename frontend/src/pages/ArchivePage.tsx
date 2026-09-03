@@ -5,6 +5,7 @@ import { useArchive, useDeleteMemory, useSignOut, useYears } from '../api/querie
 import { ComposeSheet } from '../components/ComposeSheet'
 import { ConfirmDialog } from '../components/ConfirmDialog'
 import { EditDialog, type EditableMemory } from '../components/EditDialog'
+import { Masthead } from '../components/Masthead'
 import { MemoryViewer } from '../components/MemoryViewer'
 import { Notice } from '../components/Notice'
 import { SignInDialog } from '../components/SignInDialog'
@@ -178,13 +179,7 @@ export function ArchivePage() {
       </header>
 
       <main className="page" id="main">
-        <div className="masthead">
-          <h1 className="display masthead__title">{archive.data.title}</h1>
-
-          {archive.data.quote && <p className="masthead__quote">{archive.data.quote}</p>}
-
-          <hr className="masthead__rule" />
-        </div>
+        <Masthead title={archive.data.title} quote={archive.data.quote} />
 
         {/* After the masthead, so the archive introduces itself before it
             offers navigation. On a narrow screen this is a strip that sticks

@@ -145,7 +145,7 @@ php artisan memories:doctor
 
 ```bash
 cd backend  && php artisan test      # 76 tests
-cd frontend && npx vitest run        # 32 tests
+cd frontend && npx vitest run        # 94 tests
 ```
 
 They cover the failure paths, not just the happy one: a Drive upload that dies

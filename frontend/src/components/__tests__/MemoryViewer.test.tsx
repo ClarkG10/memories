@@ -223,6 +223,33 @@ describe('a memory holding a great many photographs', () => {
     expect(screen.queryByRole('button', { name: 'Show 1 of 49' })).not.toBeInTheDocument()
   })
 
+  it('does not restart the fade for every photograph when travelling quickly', async () => {
+    mockApi(baseHandlers(aMemoryOf(20)))
+
+    const { container } = renderArchive('/m/memory-1')
+
+    expect(await screen.findByText('1 / 20')).toBeInTheDocument()
+
+    const stage = () => container.querySelector('.viewer__enter') as HTMLElement
+
+    /*
+     | A held arrow key repeats about thirty times a second. Restarting the
+     | fade on each one would blink the brightest thing in a dark room; while a
+     | photograph is still arriving, the next simply appears at rest.
+     |
+     | Fired straight at the document rather than through userEvent, which
+     | waits between presses: the point of the test is presses that land while
+     | the previous photograph is still on its way in.
+     */
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+    fireEvent.keyDown(document, { key: 'ArrowRight' })
+
+    expect(screen.getByText('4 / 20')).toBeInTheDocument()
+    expect(stage().style.opacity).toBe('')
+    expect(stage().style.transform).toBe('')
+  })
+
   it('moves to the photograph the scrubber is dragged to', async () => {
     mockApi(baseHandlers(aMemoryOf(49)))
 

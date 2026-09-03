@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useMemory } from '../api/queries'
 import { useFullscreen } from '../hooks/useFullscreen'
 import { useOverlay } from '../hooks/useOverlay'
+import { DURATION, EASE, gsap, prefersReducedMotion, settleIn, useGSAP } from '../lib/motion'
 import { formatLongDate } from '../lib/dates'
 import { Notice } from './Notice'
 import { referenceOf } from '../api/client'
@@ -195,6 +196,26 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
     step(dx < 0 ? 1 : -1)
   }
 
+  /*
+   | The words settle in under the photograph once the memory has arrived, and
+   | again when they are brought back after going bare. Not when stepping
+   | between photographs: the words belong to the memory, not to the picture.
+   */
+  const captionRef = useRef<HTMLDivElement | null>(null)
+
+  useGSAP(
+    () => {
+      if (!query.data || bare) return
+
+      settleIn(captionRef.current?.children, {
+        stagger: 0.06,
+        distance: 8,
+        duration: DURATION.base,
+      })
+    },
+    { scope: captionRef, dependencies: [query.data?.id, bare] },
+  )
+
   return (
     <div
       className="viewer"
@@ -284,6 +305,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
           {current && (
             <Stage
               media={current}
+              index={index}
               title={query.data?.title ?? ''}
               onToggleBare={toggleBare}
             />
@@ -321,7 +343,7 @@ export function MemoryViewer({ memoryId, initialIndex, onClose, canManage, onEdi
         | stylesheet, and leaving the words in the document to be covered up
         | is how they come back the moment a rule moves.
       */}
-      <div className="viewer__caption" hidden={bare}>
+      <div className="viewer__caption" hidden={bare} ref={captionRef}>
         {query.data && !bare && (
           <>
             <time className="label viewer__date" dateTime={query.data.memory_date}>
@@ -395,27 +417,89 @@ function previewSource(media: Media | undefined): string | null {
 
 function Stage({
   media,
+  index,
   title,
   onToggleBare,
 }: {
   media: Media
+  index: number
   title: string
   onToggleBare: () => void
 }) {
+  const ref = useRef<HTMLDivElement | null>(null)
+  const lastIndex = useRef(index)
+  const lastArrival = useRef(0)
+
+  /*
+   | Each photograph arrives from the side it was asked for — a few percent, no
+   | more — and the first one comes up out of nothing, a hair under full size.
+   | Nothing slides the way a carousel slides; the room is dim and the movement
+   | is a settling.
+   |
+   | Travelling quickly is the exception. A held arrow key repeats about thirty
+   | times a second and a dragged scrubber faster still, and restarting the
+   | fade on each one turns the brightest thing in a dark room into a strobe.
+   | While a photograph is still arriving, the next simply appears at rest.
+   |
+   | Under reduced motion the photograph is simply there, which is what the
+   | stylesheet says anyway.
+   */
+  useGSAP(
+    () => {
+      const direction = Math.sign(index - lastIndex.current)
+      lastIndex.current = index
+
+      if (prefersReducedMotion() || !ref.current) return
+
+      /*
+       | Measured rather than asked of GSAP: a tween does not report itself as
+       | running until the ticker has drawn it, so two photographs asked for
+       | inside one frame would both start a fade.
+       */
+      const now = performance.now()
+      const sincePrevious = now - lastArrival.current
+      lastArrival.current = now
+
+      if (sincePrevious < DURATION.base * 1000) {
+        gsap.killTweensOf(ref.current)
+        gsap.set(ref.current, { clearProps: 'opacity,transform' })
+
+        return
+      }
+
+      gsap.fromTo(
+        ref.current,
+        direction === 0 ? { opacity: 0, scale: 0.99 } : { opacity: 0, xPercent: 3 * direction },
+        {
+          opacity: 1,
+          scale: 1,
+          xPercent: 0,
+          duration: DURATION.base,
+          ease: EASE.soft,
+          clearProps: 'opacity,transform',
+          overwrite: true,
+        },
+      )
+    },
+    { scope: ref, dependencies: [media.id, index] },
+  )
+
   if (media.type === 'video') {
     return (
-      <video
-        key={media.id}
-        className="viewer__video"
-        src={media.urls.stream}
-        poster={media.urls.poster}
-        controls
-        playsInline
-        preload="metadata"
-      >
-        <track kind="captions" />
-        Your browser cannot play this video.
-      </video>
+      <div className="viewer__enter" ref={ref}>
+        <video
+          key={media.id}
+          className="viewer__video"
+          src={media.urls.stream}
+          poster={media.urls.poster}
+          controls
+          playsInline
+          preload="metadata"
+        >
+          <track kind="captions" />
+          Your browser cannot play this video.
+        </video>
+      </div>
     )
   }
 
@@ -430,9 +514,11 @@ function Stage({
    | the one thing on the screen worth describing.
    */
   return (
-    <button type="button" className="viewer__surface" onClick={onToggleBare}>
-      <ViewerImage media={media} alt={title} />
-    </button>
+    <div className="viewer__enter" ref={ref}>
+      <button type="button" className="viewer__surface" onClick={onToggleBare}>
+        <ViewerImage media={media} alt={title} />
+      </button>
+    </div>
   )
 }
 

@@ -132,30 +132,11 @@ button {
 /* --------------------------------------------------------------------------
  * The reveal
  *
- * Memories fade up as they come into view. Slow, small distance, once only —
- * it should read as the page settling, not as an animation.
+ * Memories settle up as they come into view — slow, a small distance, once
+ * only, the photograph a beat before its words. That sequence is GSAP's, in
+ * MemoryPlate.tsx and src/lib/motion.ts. Nothing here hides a memory, so a
+ * page whose script has not run is still a page of photographs.
  * ----------------------------------------------------------------------- */
-
-.reveal {
-  opacity: 0;
-  transform: translateY(18px);
-  transition:
-    opacity var(--duration-slow) var(--ease-out-soft),
-    transform var(--duration-slow) var(--ease-out-soft);
-  will-change: opacity, transform;
-}
-
-.reveal[data-visible='true'] {
-  opacity: 1;
-  transform: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .reveal {
-    opacity: 1;
-    transform: none;
-  }
-}
 
 /* --------------------------------------------------------------------------
  * Buttons
